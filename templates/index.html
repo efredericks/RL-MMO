@@ -1,0 +1,178 @@
+<!DOCTYPE HTML>
+<html>
+
+<head>
+    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" -->
+    <!-- integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" -->
+    <!-- crossorigin="anonymous"></script> -->
+    <script src="{{ url_for('static', filename='socket.io_4.0.1_socket.io.js') }}"></script>
+    <script type="text/javascript" charset="utf-8">
+
+        let canvas, ctx;
+        let gameMap, gamePlayers, gameEnemies;
+        let myID;
+        let players;
+        let NUM_ROWS, NUM_COLS;
+        drawMap = () => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#eee";
+            for (let r = 0; r < gameMap.length; r++) {
+                for (let c = 0; c < gameMap[0].length; c++) {
+                    ctx.fillText(gameMap[r][c], c * 24, r * 24 + 24);
+                }
+            }
+
+            if (gameEnemies !== undefined) {
+                ctx.fillStyle = "#ffff00";
+                for (const [enemy_id, enemy] of Object.entries(gameEnemies)) {
+                    ctx.clearRect(enemy.pos.c * 24, enemy.pos.r * 24, 24, 24);
+                    ctx.fillText("E", enemy.pos.c * 24, enemy.pos.r * 24 + 24);
+                }
+            }
+
+
+            if (gamePlayers !== undefined)
+                for (const [player_id, player] of Object.entries(gamePlayers)) {
+                    // TBD: filter entities beforehand and simply don't draw them
+                    ctx.clearRect(player.pos.c * 24, player.pos.r * 24, 24, 24);
+
+
+                    let a = 255;
+                    if (!player.active)
+                        a = 100;
+                    ctx.globalAlpha = a / 255;
+
+                    if (player_id == myID)
+                        ctx.fillStyle = "#ff00ff";
+                    else
+                        ctx.fillStyle = "#00ff00";
+                    ctx.fillText("@", player.pos.c * 24, player.pos.r * 24 + 24);
+
+                }
+            ctx.globalAlpha = 1.0;
+
+        }
+        movePlayer = (socket, pid, c, r) => {
+            socket.emit('moveplayer', { playerID: pid, c: c, r: r });
+        }
+        meditatePlayer = (socket, pid) => {
+            socket.emit('meditateplayer', { playerID: pid });
+        }
+        window.onload = () => {
+            canvas = document.getElementById('game-canvas');
+            ctx = canvas.getContext("2d");
+            ctx.font = "24px Courier"
+            ctx.fillStyle = "#eee";
+
+            // temp - move to python
+            gameMap = undefined;
+            gamePlayers = undefined;
+            gameEnemies = undefined;
+            myID = undefined;
+
+            let socket = io();
+
+            // keyboard handling
+            addEventListener("keydown", (ev) => {
+                switch (ev.key) {
+                    // move keys
+                    case 'j':
+                        movePlayer(socket, myID, 0, 1);
+                        break;
+                    case 'k':
+                        movePlayer(socket, myID, 0, -1);
+                        break;
+                    case 'h':
+                        movePlayer(socket, myID, -1, 0);
+                        break;
+                    case 'l':
+                        movePlayer(socket, myID, 1, 0);
+                        break;
+
+                    case 'y':
+                        movePlayer(socket, myID, -1, -1);
+                        break;
+                    case 'u':
+                        movePlayer(socket, myID, 1, -1);
+                        break;
+                    case 'b':
+                        movePlayer(socket, myID, -1, 1);
+                        break;
+                    case 'n':
+                        movePlayer(socket, myID, 1, 1);
+                        break;
+
+                    // "meditate"
+                    case 'm':
+                        meditatePlayer(socket, myID);
+                        break;
+                }
+
+
+                if (gameMap !== undefined)
+                    drawMap();
+            });
+
+            socket.on('connect', function () {
+                socket.emit('my event', { data: 'I\'m connected!' });
+            });
+
+            // initial map load
+            socket.on('mapload', function (msg) {
+                console.log("Parsing received map.")
+                myID = msg.playerID;
+                gamePlayers = JSON.parse(msg.players);
+                gameEnemies = JSON.parse(msg.enemies);
+                gameMap = JSON.parse(msg.map)
+                console.log(gamePlayers)
+                console.log(gameEnemies)
+                console.log(gameMap)
+                drawMap();
+            });
+
+            // tick received
+            socket.on('tick', function (msg) {
+                gamePlayers = JSON.parse(msg.players);
+                gameEnemies = JSON.parse(msg.enemies);
+                drawMap();
+            });
+
+            // request tick
+            let tickInterval = setInterval(function () {
+                socket.emit('tickRequest');
+            }, 200);
+        };
+
+
+
+    </script>
+    <style>
+        * {
+            margin: 0px;
+            padding: 0px;
+            background: #000;
+        }
+
+        #game-canvas {
+            /* width: 100%; */
+            background: #222;
+
+            margin: 0 auto;
+            display: block;
+            width: 640px;
+            height: 480px;
+            position: absolute;
+            left: 50%;
+            top: 50%;
+
+            margin-top: -240px;
+            margin-left: -320px;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas id="game-canvas" width="640" height="480"></canvas>
+</body>
+
+</html>
