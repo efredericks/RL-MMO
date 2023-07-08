@@ -20,6 +20,9 @@ ENEMY_DIRS = [
 MAX_ENEMIES_PER_LEVEL = 20
 MIN_ENEMIES_PER_LEVEL = 5
 
+MIN_ITEMS_PER_LEVEL = 3
+MAX_ITEMS_PER_LEVEL = 10 
+
 LOOKUP_STATS = {
     'maxHP': {
         'player': 10,
@@ -29,8 +32,12 @@ LOOKUP_STATS = {
     }
 }
 ENTITY_NAMES = [
+    # moveable
     'player',
     'gobbo', 'snek', 'rat',
+
+    # static
+    'apple',
 ]
 
 app = Flask(__name__)
@@ -43,10 +50,29 @@ scheduler.start()
 
 socketio = SocketIO(app)
 
-# Entity that can move around the screen
-class MoveableEntity:
-    def __init__(self, _type, pos, entity_id=None):
+# Base entity class
+class Entity:
+    def __init__(self, _type, pos, entity_id=None, count=None):
         assert _type in ENTITY_NAMES, "Error: ${0} not found in lookup table.".format(_type)
+
+        self.entity_id = entity_id
+        self._type = _type
+        self.pos = pos
+        self.count = count
+
+    def getTransmissable(self):
+        return {
+            'type': self._type,
+            'pos': self.pos,
+            'count': self.count,
+        }
+
+# Entity that can move around the screen
+class MoveableEntity(Entity):
+    def __init__(self, _type, pos, entity_id=None):
+        super().__init__(_type, pos, entity_id)
+        assert _type in ENTITY_NAMES, "Error: ${0} not found in lookup table.".format(_type)
+
 
         # particulars
         self._type = _type
@@ -76,7 +102,7 @@ class Game:
         self.gameMap = self.initMap()
         self.players = {}
         self.enemies = self.initEnemies()
-        self.items = {}
+        self.items = self.initItems()
 
 
     def addPlayer(self, player_id):
@@ -159,6 +185,15 @@ class Game:
             _enemies.append(self.addEnemy())
         return _enemies
 
+    def initItems(self):
+        _items = []
+        for _ in range(random.randint(MIN_ITEMS_PER_LEVEL, MAX_ITEMS_PER_LEVEL)): # TBD - relate to level
+            _items.append(self.addItem())
+        return _items
+
+    def addItem(self):
+        return Entity("apple", self.getRandomPos(), str(uuid.uuid4()))
+
     def addEnemy(self):
         return MoveableEntity("snek", self.getRandomPos(), str(uuid.uuid4()))
 
@@ -166,7 +201,7 @@ class Game:
         # return pos
 
     def isWalkable(self, c, r):
-        if c >= 0 and c <= self.NUM_COLS-1 and r >= 0 and c <= self.NUM_ROWS-1 and self.gameMap[r][c] != "#":
+        if c >= 0 and c <= self.NUM_COLS-1 and r >= 0 and r <= self.NUM_ROWS-1 and self.gameMap[r][c] != "#":
             return True
         return False
 
@@ -226,18 +261,24 @@ class Game:
     # getters/setters
     def getJSONMap(self):
         return json.dumps(self.gameMap)
+
     def getJSONPlayers(self):
         op = {}
         for k,v in self.players.items():
             op[v.entity_id] = v.getTransmissable()
         return json.dumps(op)
-        # return json.dumps(self.players)
+
     def getJSONEnemies(self):
         op = {}
         for v in self.enemies:
             op[v.entity_id] = v.getTransmissable()
         return json.dumps(op)
-        # return json.dumps(self.enemies)
+    
+    def getJSONItems(self):
+        op = {}
+        for v in self.items:
+            op[v.entity_id] = v.getTransmissable()
+        return json.dumps(op)
 
 # TBD - turn into a db of some sort to avoid process issues
 game = Game()
@@ -266,6 +307,7 @@ def test_connect():
         'players': game.getJSONPlayers(), 
         'map': game.getJSONMap(),
         'enemies': game.getJSONEnemies(),
+        'items': game.getJSONItems(),
     })
 
 # put them to "sleep"
@@ -290,6 +332,7 @@ def sendTick():
         # 'playerID': request.sid,
         'players': game.getJSONPlayers(), 
         'enemies': game.getJSONEnemies(),
+        'items': game.getJSONItems(),
         # 'map': game.getJSONMap()
     })
 

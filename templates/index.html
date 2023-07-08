@@ -7,9 +7,20 @@
     <!-- crossorigin="anonymous"></script> -->
     <script src="{{ url_for('static', filename='socket.io_4.0.1_socket.io.js') }}"></script>
     <script type="text/javascript" charset="utf-8">
+        let KEYS = {
+            'up': ['KeyK', 'ArrowUp', 'Numpad8'],
+            'down': ['KeyJ', 'ArrowDown', 'Numpad2'],
+            'left': ['KeyH', 'ArrowLeft', 'Numpad4'],
+            'right': ['KeyL', 'ArrowRight', 'Numpad6'],
+
+            'upleft': ['KeyY', 'Numpad7'],
+            'upright': ['KeyU', 'Numpad9'],
+            'downleft': ['KeyB', 'Numpad1'],
+            'downright': ['KeyN', 'Numpad3'],
+        };
 
         let canvas, ctx;
-        let gameMap, gamePlayers, gameEnemies;
+        let gameMap, gamePlayers, gameEnemies, gameItems;
         let myID;
         let players;
         let NUM_ROWS, NUM_COLS;
@@ -19,6 +30,14 @@
             for (let r = 0; r < gameMap.length; r++) {
                 for (let c = 0; c < gameMap[0].length; c++) {
                     ctx.fillText(gameMap[r][c], c * 24, r * 24 + 24);
+                }
+            }
+
+            if (gameItems !== undefined) {
+                ctx.fillStyle = "#00ff00";
+                for (const [item_id, item] of Object.entries(gameItems)) {
+                    ctx.clearRect(item.pos.c * 24, item.pos.r * 24, 24, 24);
+                    ctx.fillText("a", item.pos.c * 24, item.pos.r * 24 + 24);
                 }
             }
 
@@ -68,6 +87,7 @@
             gameMap = undefined;
             gamePlayers = undefined;
             gameEnemies = undefined;
+            gameItems = undefined;
             myID = undefined;
 
             let socket = io();
@@ -123,10 +143,12 @@
                 myID = msg.playerID;
                 gamePlayers = JSON.parse(msg.players);
                 gameEnemies = JSON.parse(msg.enemies);
+                gameItems = JSON.parse(msg.items);
                 gameMap = JSON.parse(msg.map)
                 console.log(gamePlayers)
                 console.log(gameEnemies)
                 console.log(gameMap)
+                console.log(gameItems)
                 drawMap();
             });
 
@@ -134,6 +156,7 @@
             socket.on('tick', function (msg) {
                 gamePlayers = JSON.parse(msg.players);
                 gameEnemies = JSON.parse(msg.enemies);
+                gameItems = JSON.parse(msg.items);
                 drawMap();
             });
 
