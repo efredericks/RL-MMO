@@ -2,6 +2,8 @@ from flask import Flask, request, render_template
 from flask_socketio import SocketIO, emit
 from flask_apscheduler import APScheduler
 
+import logging
+
 import json
 import random
 import uuid
@@ -91,7 +93,8 @@ class MoveableEntity(Entity):
             'pos': self.pos,
             'hp': self.hp,
             'maxHP': self.maxHP,
-            'active': self.active
+            'active': self.active,
+            'inventory': self.inventory,
         }
 
 
@@ -231,6 +234,38 @@ class Game:
     def meditatePlayer(self, pid):
         self.players[pid].active = not self.players[pid].active
 
+    def pickupItem(self, pid):
+        pos = self.players[pid].pos
+        idx = -1
+        for i in range(len(self.items)):
+            item = self.items[i]
+            if item.pos['c'] == pos['c'] and item.pos['r'] == pos['r']:
+                idx = i
+
+                if item._type in self.players[pid].inventory:
+                    self.players[pid].inventory[item._type] += 1
+                else:
+                    self.players[pid].inventory[item._type] = 1
+
+                break
+
+
+        if idx != -1:
+            del self.items[idx]
+            # return True
+        # return False
+        # item_id = None
+        # for i in range(len(self.items)):
+        #     item = self.items[i]
+
+        #     # item found
+        #     if item.pos['r'] == pos['r'] and item.pos['c'] == pos['c']:
+        #         item_id = i
+        #         print(i)
+
+        # if item_id is not None:
+        #     del self.items[i]
+
     def hasEnemy(self, pid, c, r):
         idx = -1
         for i in range(len(self.enemies)):
@@ -317,6 +352,13 @@ def meditate_player(msg):
     if msg['playerID'] in game.players:
         game.meditatePlayer(msg['playerID'])
 
+# pickup item under the player
+@socketio.on('pickupitem')
+def meditate_player(msg):
+    global game
+    if msg['playerID'] in game.players:
+        game.pickupItem(msg['playerID'])
+
 @socketio.on('moveplayer')
 def move_player(msg):
     global game
@@ -345,4 +387,9 @@ def test_disconnect():
 
 if __name__ == '__main__':
     app.debug = True
+
+    # disable get/post messages for python debugging
+    log = logging.getLogger("werkzeug")
+    log.disabled = True
+
     socketio.run(app)

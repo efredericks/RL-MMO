@@ -77,6 +77,9 @@
         meditatePlayer = (socket, pid) => {
             socket.emit('meditateplayer', { playerID: pid });
         }
+        pickupItem = (socket, pid) => {
+            socket.emit('pickupitem', { playerID: pid });
+        }
         window.onload = () => {
             canvas = document.getElementById('game-canvas');
             ctx = canvas.getContext("2d");
@@ -126,6 +129,10 @@
                     case 'm':
                         meditatePlayer(socket, myID);
                         break;
+
+                    case ',':
+                        pickupItem(socket, myID);
+                        break;
                 }
 
 
@@ -157,6 +164,8 @@
                 gamePlayers = JSON.parse(msg.players);
                 gameEnemies = JSON.parse(msg.enemies);
                 gameItems = JSON.parse(msg.items);
+
+                // console.log(gamePlayers)
                 drawMap();
             });
 
