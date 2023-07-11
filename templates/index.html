@@ -24,36 +24,49 @@
         let myID;
         let players;
         let NUM_ROWS, NUM_COLS;
+        let tileSize = 24;
+        let halfTile = tileSize / 2;
+
+        let uiX, uiY;
+
+
         drawMap = () => {
+            uiX = canvas.width - 260 + halfTile;
+            uiY = tileSize;
+
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = "#eee";
+
+            ctx.fillText("RL-MMO", uiX, uiY);
+            uiY += tileSize;
+
             for (let r = 0; r < gameMap.length; r++) {
                 for (let c = 0; c < gameMap[0].length; c++) {
-                    ctx.fillText(gameMap[r][c], c * 24, r * 24 + 24);
+                    ctx.fillText(gameMap[r][c], c * tileSize, r * tileSize + tileSize);
                 }
             }
 
             if (gameItems !== undefined) {
                 ctx.fillStyle = "#00ff00";
                 for (const [item_id, item] of Object.entries(gameItems)) {
-                    ctx.clearRect(item.pos.c * 24, item.pos.r * 24, 24, 24);
-                    ctx.fillText("a", item.pos.c * 24, item.pos.r * 24 + 24);
+                    ctx.clearRect(item.pos.c * tileSize, item.pos.r * tileSize, tileSize, tileSize);
+                    ctx.fillText("a", item.pos.c * tileSize, item.pos.r * tileSize + tileSize);
                 }
             }
 
             if (gameEnemies !== undefined) {
                 ctx.fillStyle = "#ffff00";
                 for (const [enemy_id, enemy] of Object.entries(gameEnemies)) {
-                    ctx.clearRect(enemy.pos.c * 24, enemy.pos.r * 24, 24, 24);
-                    ctx.fillText("E", enemy.pos.c * 24, enemy.pos.r * 24 + 24);
+                    ctx.clearRect(enemy.pos.c * tileSize, enemy.pos.r * tileSize, tileSize, tileSize);
+                    ctx.fillText("E", enemy.pos.c * tileSize, enemy.pos.r * tileSize + tileSize);
                 }
             }
 
 
-            if (gamePlayers !== undefined)
+            if (gamePlayers !== undefined) {
                 for (const [player_id, player] of Object.entries(gamePlayers)) {
                     // TBD: filter entities beforehand and simply don't draw them
-                    ctx.clearRect(player.pos.c * 24, player.pos.r * 24, 24, 24);
+                    ctx.clearRect(player.pos.c * tileSize, player.pos.r * tileSize, tileSize, tileSize);
 
 
                     let a = 255;
@@ -61,14 +74,29 @@
                         a = 100;
                     ctx.globalAlpha = a / 255;
 
-                    if (player_id == myID)
+                    if (player_id == myID) {
+                        // draw side information 
+                        let apples = 0;
+                        if ('apple' in player.inventory)
+                            apples = player.inventory['apple'];
+
+                        ctx.fillStyle = "#eee";
+                        ctx.fillText(`Player ${myID}`, uiX, uiY);
+                        uiY += tileSize;
+                        ctx.fillText(`HP: ${player.hp}/${player.maxHP}`, uiX, uiY);
+                        uiY += tileSize;
+                        ctx.fillText(`Apples: ${apples}`, uiX, uiY);
+
+
+                        // fill for player entity
                         ctx.fillStyle = "#ff00ff";
-                    else
+                    } else
                         ctx.fillStyle = "#00ff00";
-                    ctx.fillText("@", player.pos.c * 24, player.pos.r * 24 + 24);
+                    ctx.fillText("@", player.pos.c * tileSize, player.pos.r * tileSize + tileSize);
 
                 }
-            ctx.globalAlpha = 1.0;
+                ctx.globalAlpha = 1.0;
+            }
 
         }
         movePlayer = (socket, pid, c, r) => {
@@ -133,6 +161,11 @@
                     case ',':
                         pickupItem(socket, myID);
                         break;
+
+                    // debug
+                    case '.':
+                        console.log(gamePlayers[myID]);
+                        break;
                 }
 
 
@@ -172,7 +205,7 @@
             // request tick
             let tickInterval = setInterval(function () {
                 if (myID !== undefined)
-                    socket.emit('tickRequest', {playerID: myID});
+                    socket.emit('tickRequest', { playerID: myID });
             }, 200);
         };
 
@@ -192,7 +225,8 @@
 
             margin: 0 auto;
             display: block;
-            width: 640px;
+            width: 900px;
+            /* 640 + 260 */
             height: 480px;
             position: absolute;
             left: 50%;
@@ -205,7 +239,7 @@
 </head>
 
 <body>
-    <canvas id="game-canvas" width="640" height="480"></canvas>
+    <canvas id="game-canvas" width="900" height="480"></canvas>
 </body>
 
 </html>

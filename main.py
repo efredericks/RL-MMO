@@ -73,7 +73,6 @@ class Entity:
 class MoveableEntity(Entity):
     def __init__(self, _type, pos, entity_id=None):
         super().__init__(_type, pos, entity_id)
-        assert _type in ENTITY_NAMES, "Error: ${0} not found in lookup table.".format(_type)
 
         # particulars
         self._type = _type
