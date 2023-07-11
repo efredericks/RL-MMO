@@ -171,7 +171,8 @@
 
             // request tick
             let tickInterval = setInterval(function () {
-                socket.emit('tickRequest');
+                if (myID !== undefined)
+                    socket.emit('tickRequest', {playerID: myID});
             }, 200);
         };
 

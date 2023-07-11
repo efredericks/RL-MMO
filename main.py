@@ -75,7 +75,6 @@ class MoveableEntity(Entity):
         super().__init__(_type, pos, entity_id)
         assert _type in ENTITY_NAMES, "Error: ${0} not found in lookup table.".format(_type)
 
-
         # particulars
         self._type = _type
         self.pos = pos
@@ -107,7 +106,6 @@ class Game:
         self.enemies = self.initEnemies()
         self.items = self.initItems()
 
-
     def addPlayer(self, player_id):
         self.players[player_id] = MoveableEntity("player", self.getRandomPos(), player_id)
         # pos = self.getRandomPos()
@@ -124,11 +122,23 @@ class Game:
     def tick(self):
         # update the enemies
         for e in self.enemies:
+
             # random follow
             if random.random() > 0.15:
                 # get closest player
                 min_dist, min_id = 999, "none"
-                for pid, player in self.players.items():
+
+
+
+                # filter players on current level
+                # players_on_level = filter(lambda l: l.pos['level'] == e.pos['level'], self.players)
+                # print(list(players_on_level))
+                players_on_level = {}
+                for pk,pv in self.players.items():
+                    if pv.pos['level'] == e.pos['level']:
+                        players_on_level[pv.entity_id] = pv
+
+                for pid, player in players_on_level.items():#self.players.items():
                     if player.active:
                         d = abs(e.pos['c'] - player.pos['c']) + abs(e.pos['r'] - player.pos['r'])
                         if d < min_dist:
@@ -198,7 +208,7 @@ class Game:
         return Entity("apple", self.getRandomPos(), str(uuid.uuid4()))
 
     def addEnemy(self):
-        return MoveableEntity("snek", self.getRandomPos(), str(uuid.uuid4()))
+        return MoveableEntity("snek", self.getRandomPos(level=2), str(uuid.uuid4()))
 
         # pos = self.getRandomPos()
         # return pos
@@ -221,13 +231,13 @@ class Game:
 
         return False
 
-    def getRandomPos(self):
+    def getRandomPos(self, level=1):
         r = random.randint(0,self.NUM_ROWS-1)
         c = random.randint(0,self.NUM_COLS-1)
         while not self.isWalkable(c, r):
             r = random.randint(0,self.NUM_ROWS-1)
             c = random.randint(0,self.NUM_COLS-1)
-        return {'r': r, 'c': c}
+        return {'r': r, 'c': c, 'level': level}
 
     # if player is meditating then they still view updates but are not impacted by what they see
     # this should probably be on a cooldown to avoid abuse
@@ -297,22 +307,25 @@ class Game:
     def getJSONMap(self):
         return json.dumps(self.gameMap)
 
-    def getJSONPlayers(self):
+    def getJSONPlayers(self, level):
         op = {}
         for k,v in self.players.items():
-            op[v.entity_id] = v.getTransmissable()
+            if v.pos['level'] == level:
+                op[v.entity_id] = v.getTransmissable()
         return json.dumps(op)
 
-    def getJSONEnemies(self):
+    def getJSONEnemies(self, level):
         op = {}
         for v in self.enemies:
-            op[v.entity_id] = v.getTransmissable()
+            if v.pos['level'] == level:
+                op[v.entity_id] = v.getTransmissable()
         return json.dumps(op)
     
-    def getJSONItems(self):
+    def getJSONItems(self, level):
         op = {}
         for v in self.items:
-            op[v.entity_id] = v.getTransmissable()
+            if v.pos['level'] == level:
+                op[v.entity_id] = v.getTransmissable()
         return json.dumps(op)
 
 # TBD - turn into a db of some sort to avoid process issues
@@ -339,10 +352,10 @@ def test_connect():
     print('User connected, sending map.')
     emit('mapload', {
         'playerID': request.sid,
-        'players': game.getJSONPlayers(), 
+        'players': game.getJSONPlayers(level=1), 
         'map': game.getJSONMap(),
-        'enemies': game.getJSONEnemies(),
-        'items': game.getJSONItems(),
+        'enemies': game.getJSONEnemies(level=1),
+        'items': game.getJSONItems(level=1),
     })
 
 # put them to "sleep"
@@ -366,17 +379,20 @@ def move_player(msg):
         game.tryMove(msg['playerID'], msg['c'], msg['r'])
 
 @socketio.on('tickRequest')
-def sendTick():
+def sendTick(msg):
     global game
     # game.tick()
 
-    emit('tick', {
-        # 'playerID': request.sid,
-        'players': game.getJSONPlayers(), 
-        'enemies': game.getJSONEnemies(),
-        'items': game.getJSONItems(),
-        # 'map': game.getJSONMap()
-    })
+    # only send updates for those players on the current level
+    if msg['playerID'] in game.players:
+        level = game.players[msg['playerID']].pos['level']
+        emit('tick', {
+            # 'playerID': request.sid,
+            'players': game.getJSONPlayers(level), 
+            'enemies': game.getJSONEnemies(level),
+            'items': game.getJSONItems(level),
+            # 'map': game.getJSONMap()
+        })
 
 @socketio.on('disconnect')
 def test_disconnect():
