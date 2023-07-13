@@ -2,6 +2,9 @@
 <html>
 
 <head>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Chivo+Mono:wght@500&display=swap" rel="stylesheet">
     <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" -->
     <!-- integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" -->
     <!-- crossorigin="anonymous"></script> -->
@@ -40,9 +43,13 @@
             ctx.fillText("RL-MMO", uiX, uiY);
             uiY += tileSize;
 
-            for (let r = 0; r < gameMap.length; r++) {
-                for (let c = 0; c < gameMap[0].length; c++) {
-                    ctx.fillText(gameMap[r][c], c * tileSize, r * tileSize + tileSize);
+            if (gamePlayers !== undefined && gameMap !== undefined) {
+                let player = gamePlayers[myID];
+
+                for (let r = 0; r < gameMap[0].length; r++) {
+                    for (let c = 0; c < gameMap[0][0].length; c++) {
+                        ctx.fillText(gameMap[player.pos['level']][r][c], c * tileSize, r * tileSize + tileSize);
+                    }
                 }
             }
 
@@ -86,6 +93,8 @@
                         ctx.fillText(`HP: ${player.hp}/${player.maxHP}`, uiX, uiY);
                         uiY += tileSize;
                         ctx.fillText(`Apples: ${apples}`, uiX, uiY);
+                        uiY += tileSize;
+                        ctx.fillText(`Level: ${player.pos.level}`, uiX, uiY);
 
 
                         // fill for player entity
@@ -108,10 +117,16 @@
         pickupItem = (socket, pid) => {
             socket.emit('pickupitem', { playerID: pid });
         }
+        ascendPlayer = (socket, pid) => {
+            socket.emit('ascendplayer', { playerID: pid });
+        }
+        descendPlayer = (socket, pid) => {
+            socket.emit('descendplayer', { playerID: pid });
+        }
         window.onload = () => {
             canvas = document.getElementById('game-canvas');
             ctx = canvas.getContext("2d");
-            ctx.font = "24px Courier"
+            ctx.font = "24px Chivo Mono, Courier";//Courier"
             ctx.fillStyle = "#eee";
 
             // temp - move to python
@@ -158,8 +173,20 @@
                         meditatePlayer(socket, myID);
                         break;
 
+                    // pickup the top item you see
+                    // TBD - maybe pick up them all, we'll see how it shakes out
                     case ',':
                         pickupItem(socket, myID);
+                        break;
+
+                    // descend
+                    case '>':
+                        descendPlayer(socket, myID);
+                        break;
+
+                    // ascend
+                    case '<':
+                        ascendPlayer(socket, myID);
                         break;
 
                     // debug
@@ -217,6 +244,7 @@
             margin: 0px;
             padding: 0px;
             background: #000;
+            font-family: 'VT323', monospace;
         }
 
         #game-canvas {

@@ -8,6 +8,11 @@ import json
 import random
 import uuid
 
+# lookup table for special tiles that are walkable but can't have things placed on them
+DONT_PLACE = [
+  "<", ">", 
+]
+
 ENEMY_DIRS = [
     {'r':-1, 'c': -1},
     {'r':-1, 'c': 0},
@@ -24,6 +29,7 @@ MIN_ENEMIES_PER_LEVEL = 5
 
 MIN_ITEMS_PER_LEVEL = 3
 MAX_ITEMS_PER_LEVEL = 10 
+
 
 LOOKUP_STATS = {
     'maxHP': {
@@ -77,6 +83,7 @@ class MoveableEntity(Entity):
         # particulars
         self._type = _type
         self.pos = pos
+        self.last_pos = pos # used to store "prior" position when going up and down stairs
         self.entity_id = entity_id # only used for logged in players
 
         # stats
@@ -100,10 +107,14 @@ class Game:
     def __init__(self):
         self.NUM_ROWS = 20
         self.NUM_COLS = 27
+        self.NUM_LEVELS = 3
         self.gameMap = self.initMap()
         self.players = {}
         self.enemies = self.initEnemies()
         self.items = self.initItems()
+
+        # place stairs
+        self.placeStairs()
 
     def addPlayer(self, player_id):
         self.players[player_id] = MoveableEntity("player", self.getRandomPos(), player_id)
@@ -151,13 +162,13 @@ class Game:
 
                     if next_r < player.pos['r']: next_r += 1
                     if next_r > player.pos['r']: next_r -= 1
-                    if self.isWalkable(next_c, next_r):
+                    if self.isWalkable(next_c, next_r, player.pos['level']):
                         e.pos['r'] = next_r
                         e.pos['c'] = next_c
 
                     if next_c < player.pos['c']: next_c += 1
                     if next_c > player.pos['c']: next_c -= 1
-                    if self.isWalkable(next_c, next_r):
+                    if self.isWalkable(next_c, next_r, player.pos['level']):
                         e.pos['r'] = next_r
                         e.pos['c'] = next_c
 
@@ -166,7 +177,7 @@ class Game:
                 new_dir = random.choice(ENEMY_DIRS)
                 new_pos = {'r': e.pos['r'] + new_dir['r'], 'c': e.pos['c'] + new_dir['c']}
 
-                if self.isWalkable(new_pos['c'], new_pos['r']):
+                if self.isWalkable(new_pos['c'], new_pos['r'], e.pos['level']):
                     e.pos['r'] = new_pos['r']
                     e.pos['c'] = new_pos['c']
 
@@ -176,19 +187,32 @@ class Game:
                 self.enemies.append(self.addEnemy())
 
 
+    def placeStairs(self):
+        # down
+        for z in range(self.NUM_LEVELS-1):
+            stair_pos = self.getRandomPos(z)
+            self.gameMap[z][stair_pos['r']][stair_pos['c']] = ">"
+
+        # up
+        for z in range(1, self.NUM_LEVELS):
+            stair_pos = self.getRandomPos(z)
+            self.gameMap[z][stair_pos['r']][stair_pos['c']] = "<"
 
     def initMap(self):
         _map = []
-        for r in range(self.NUM_ROWS):
+        for z in range(self.NUM_LEVELS):
             _map.append([])
-            for c in range(self.NUM_COLS):
-                if r == 0 or c == 0 or r == self.NUM_ROWS-1 or c == self.NUM_COLS-1:
-                    _map[r].append("#")
-                else:
-                    if random.random() > 0.9:
-                        _map[r].append("#")
+
+            for r in range(self.NUM_ROWS):
+                _map[z].append([])
+                for c in range(self.NUM_COLS):
+                    if r == 0 or c == 0 or r == self.NUM_ROWS-1 or c == self.NUM_COLS-1:
+                        _map[z][r].append("#")
                     else:
-                        _map[r].append(".")
+                        if random.random() > 0.9:
+                            _map[z][r].append("#")
+                        else:
+                            _map[z][r].append(".")
         return _map
 
     def initEnemies(self):
@@ -212,15 +236,22 @@ class Game:
         # pos = self.getRandomPos()
         # return pos
 
-    def isWalkable(self, c, r):
-        if c >= 0 and c <= self.NUM_COLS-1 and r >= 0 and r <= self.NUM_ROWS-1 and self.gameMap[r][c] != "#":
+    # can walk
+    def isWalkable(self, c, r, z):
+        if c >= 0 and c <= self.NUM_COLS-1 and r >= 0 and r <= self.NUM_ROWS-1 and self.gameMap[z][r][c] != "#":
+            return True
+        return False
+
+    # can place things
+    def isPlaceable(self, c, r, z):
+        if self.gameMap[z][r][c] not in DONT_PLACE:
             return True
         return False
 
     # in bounds and walkable
-    def isValid(self, pid, c, r):
+    def isValid(self, pid, c, r, z):
         # in bounds / walkable
-        if self.isWalkable(c, r):
+        if self.isWalkable(c, r, z):
             # check for other players that are active 
             for other_pid, other_player in self.players.items():
                 if other_pid != pid and other_player.active and other_player.pos['c'] == c and other_player.pos['r'] == r:
@@ -230,10 +261,10 @@ class Game:
 
         return False
 
-    def getRandomPos(self, level=1):
+    def getRandomPos(self, level=0):
         r = random.randint(0,self.NUM_ROWS-1)
         c = random.randint(0,self.NUM_COLS-1)
-        while not self.isWalkable(c, r):
+        while not self.isWalkable(c, r, level) or not self.isPlaceable(c, r, level):
             r = random.randint(0,self.NUM_ROWS-1)
             c = random.randint(0,self.NUM_COLS-1)
         return {'r': r, 'c': c, 'level': level}
@@ -242,6 +273,26 @@ class Game:
     # this should probably be on a cooldown to avoid abuse
     def meditatePlayer(self, pid):
         self.players[pid].active = not self.players[pid].active
+
+    # go up a level
+    def ascendPlayer(self, pid):
+        pos = self.players[pid].pos
+        nextZ = pos['level'] - 1
+        new_pos = self.getRandomPos(nextZ)
+
+        self.players[pid].last_pos = pos
+        self.players[pid].pos = new_pos
+        self.players[pid].pos['level'] = nextZ
+
+    # go down a level
+    def descendPlayer(self, pid):
+        pos = self.players[pid].pos
+        nextZ = pos['level'] + 1
+        new_pos = self.getRandomPos(nextZ)
+
+        self.players[pid].last_pos = pos
+        self.players[pid].pos = new_pos
+        self.players[pid].pos['level'] = nextZ
 
     def pickupItem(self, pid):
         pos = self.players[pid].pos
@@ -298,7 +349,7 @@ class Game:
         if self.hasEnemy(pid, next_c, next_r):
             pass  # no movement, attack handled elsewhere
 
-        elif self.isValid(pid, next_c, next_r):
+        elif self.isValid(pid, next_c, next_r, self.players[pid].pos['level']):
             self.players[pid].pos['c'] = next_c
             self.players[pid].pos['r'] = next_r
 
@@ -351,10 +402,10 @@ def test_connect():
     print('User connected, sending map.')
     emit('mapload', {
         'playerID': request.sid,
-        'players': game.getJSONPlayers(level=1), 
+        'players': game.getJSONPlayers(level=0), 
         'map': game.getJSONMap(),
-        'enemies': game.getJSONEnemies(level=1),
-        'items': game.getJSONItems(level=1),
+        'enemies': game.getJSONEnemies(level=0),
+        'items': game.getJSONItems(level=0),
     })
 
 # put them to "sleep"
@@ -370,6 +421,18 @@ def meditate_player(msg):
     global game
     if msg['playerID'] in game.players:
         game.pickupItem(msg['playerID'])
+
+@socketio.on('ascendplayer')
+def ascend_player(msg):
+    global game
+    if msg['playerID'] in game.players:
+        game.ascendPlayer(msg['playerID'])
+
+@socketio.on('descendplayer')
+def descend_player(msg):
+    global game
+    if msg['playerID'] in game.players:
+        game.descendPlayer(msg['playerID'])
 
 @socketio.on('moveplayer')
 def move_player(msg):
