@@ -31,7 +31,83 @@
         let halfTile = tileSize / 2;
 
         let uiX, uiY;
+        let sounds;
+        let audioPlaying = true;
 
+        // pick a random index for each sound on [1,len]
+        let soundMaps = {
+            monHit: 2,
+            playerHit: 15,
+            pickup: 4,
+            stairs: 7,
+            spawn: 1,
+        };
+
+        // utility functions
+        // random integer [min, max) -- https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random
+        getRandomInt = (min, max) => {
+            min = Math.ceil(min);
+            max = Math.floor(max);
+            return Math.floor(Math.random() * (max - min) + min);
+        }
+
+        // c/o https://nluqo.github.io/broughlike-tutorial/stage7.html
+        initSounds = () => {
+            sounds = {
+                bg: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/ambience - small motor and water dripping 2.wav') }}"),
+
+                monHit1: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/banana hits face 1.wav') }}"),
+                monHit2: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/banana hits face 2.wav') }}"),
+
+                playerHit1: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/bat hit 1.wav') }}"),
+                playerHit2: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/bat hit 2.wav') }}"),
+                playerHit3: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/bat hit 3.wav') }}"),
+                playerHit4: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/bat hit 4.wav') }}"),
+                playerHit5: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/bat hit 5.wav') }}"),
+                playerHit6: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/bat hit 6.wav') }}"),
+                playerHit7: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/bat hit 7.wav') }}"),
+                playerHit8: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/bat hit 8.wav') }}"),
+                playerHit9: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/bat hit 9.wav') }}"),
+                playerHit10: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/bat hit 10.wav') }}"),
+                playerHit11: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/bat hit 11.wav') }}"),
+                playerHit12: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/bat hit 12.wav') }}"),
+                playerHit13: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/bat hit 13.wav') }}"),
+                playerHit14: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/bat hit 14.wav') }}"),
+                playerHit15: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/bat hit 15.wav') }}"),
+
+                pickup1: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/pick up wood 1.wav') }}"),
+                pickup2: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/pick up wood 2.wav') }}"),
+                pickup3: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/pick up wood 3.wav') }}"),
+                pickup4: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/pick up wood 4.wav') }}"),
+
+                stairs1: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/step stool opened 1.wav') }}"),
+                stairs2: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/step stool opened 2.wav') }}"),
+                stairs3: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/step stool opened 3.wav') }}"),
+                stairs4: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/step stool opened 4.wav') }}"),
+                stairs5: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/step stool opened 5.wav') }}"),
+                stairs6: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/step stool opened 6.wav') }}"),
+                stairs7: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/step stool opened 7.wav') }}"),
+
+                spawn1: new Audio("{{ url_for('static', filename='assets/sounds/filmcow/metal dinging underwater 1.wav') }}"),
+
+
+
+                // : new Audio("{{ url_for('static', filename='assets/sounds/filmcow/.wav') }}"),
+            }
+        }
+        playSound = (snd) => {
+            if (snd == 'bg') {
+                sounds[snd].currentTime = 0;
+                sounds[snd].play();
+                sounds[snd].loop = true;
+            } else {
+
+                let idx = getRandomInt(1, soundMaps[snd] + 1);
+                let key = `${snd}${idx}`;
+                sounds[key].currentTime = 0;
+                sounds[key].play();
+            }
+        }
 
         drawMap = () => {
             uiX = canvas.width - 260 + halfTile;
@@ -94,7 +170,7 @@
                         uiY += tileSize;
                         ctx.fillText(`Apples: ${apples}`, uiX, uiY);
                         uiY += tileSize;
-                        ctx.fillText(`Level: ${player.pos.level}`, uiX, uiY);
+                        ctx.fillText(`Level: ${player.pos.level + 1}`, uiX, uiY);
 
 
                         // fill for player entity
@@ -123,6 +199,20 @@
         descendPlayer = (socket, pid) => {
             socket.emit('descendplayer', { playerID: pid });
         }
+
+        // event handling
+        document.addEventListener("DOMContentLoaded", (ev) => {
+            let _selector = document.querySelector("input[name=allowAudio]")
+            _selector.addEventListener('change', function (chk_ev) {
+                audioPlaying = !audioPlaying;
+
+                if (audioPlaying)
+                    playSound('bg');
+                else
+                    sounds['bg'].pause();
+            });
+        });
+
         window.onload = () => {
             canvas = document.getElementById('game-canvas');
             ctx = canvas.getContext("2d");
@@ -138,8 +228,16 @@
 
             let socket = io();
 
+            initSounds();
+
+
             // keyboard handling
             addEventListener("keydown", (ev) => {
+                // start on any keypress -- TBD move to a load screen or something later on
+                if (sounds['bg'].paused && audioPlaying)
+                    playSound('bg');
+
+
                 switch (ev.key) {
                     // move keys
                     case 'j':
@@ -229,6 +327,31 @@
                 drawMap();
             });
 
+            // response received from user input (mainly for sound)
+            socket.on('serverResponse', function (msg) {
+                if (audioPlaying) {
+                    switch (msg.resp) {
+                        case 'pickupSuccess':
+                            playSound('pickup');
+                            break;
+                        case 'stairUpSuccess':
+                        case 'stairDownSuccess':
+                            playSound('stairs');
+                            break;
+                        case 'playerHitMonster':
+                            playSound('playerHit');
+                            break;
+                        case 'monsterHitPlayer':
+                            playSound('monsterHit');
+                            break;
+                        case 'monsterSpawn':
+                            console.log("spawning")
+                            playSound('spawn');
+                            break;
+                    }
+                }
+            });
+
             // request tick
             let tickInterval = setInterval(function () {
                 if (myID !== undefined)
@@ -243,8 +366,19 @@
         * {
             margin: 0px;
             padding: 0px;
-            background: #000;
-            font-family: 'VT323', monospace;
+            /* background: #000; */
+            font-family: 'Chivo Mono', monospace;
+            color: #eee;
+        }
+
+        /* based on: https://codepen.io/edmundojr/pen/xOYJGw */
+        body {
+            background: linear-gradient(90deg, #333 21px, transparent 1%) center, linear-gradient(#333 21px, transparent 1%) center, #a799cc;
+            background-size: 22px 22px;
+        }
+
+        fieldset {
+            padding: 10px;
         }
 
         #game-canvas {
@@ -261,12 +395,34 @@
             top: 50%;
 
             margin-top: -240px;
-            margin-left: -320px;
+            margin-left: -455px;
+            /* 900/2 + 10/2 */
+            /* margin-left: -320px; */
+
+            border: 5px solid #eee;
+            border-radius: 20px;
+            padding: 10px;
+        }
+
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
         }
     </style>
 </head>
 
 <body>
+    <div id="bg"></div>
+    <div id="ui">
+        <fieldset>
+            <legend>UI</legend>
+            <div>
+                <input type="checkbox" id="allowAudio" name="allowAudio" checked />
+                <label for="allowAudio">Audio?</label>
+            </div>
+        </fieldset>
+    </div>
     <canvas id="game-canvas" width="900" height="480"></canvas>
 </body>
 

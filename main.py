@@ -185,6 +185,9 @@ class Game:
         if len(self.enemies) < MIN_ENEMIES_PER_LEVEL:
             if random.random() > 0.5:
                 self.enemies.append(self.addEnemy())
+                # out of program scope -- need to figure out how to incorporate the socket
+                # in the scheduler
+                # emit('serverResponse', {'resp': 'monsterSpawn'})
 
 
     def placeStairs(self):
@@ -277,26 +280,36 @@ class Game:
     # go up a level
     def ascendPlayer(self, pid):
         pos = self.players[pid].pos
-        nextZ = pos['level'] - 1
-        new_pos = self.getRandomPos(nextZ)
 
-        self.players[pid].last_pos = pos
-        self.players[pid].pos = new_pos
-        self.players[pid].pos['level'] = nextZ
+        if self.gameMap[pos['level']][pos['r']][pos['c']] == '<':
+            nextZ = pos['level'] - 1
+            new_pos = self.getRandomPos(nextZ)
+
+            self.players[pid].last_pos = pos
+            self.players[pid].pos = new_pos
+            self.players[pid].pos['level'] = nextZ
+
+            return True
+        return False
 
     # go down a level
     def descendPlayer(self, pid):
         pos = self.players[pid].pos
-        nextZ = pos['level'] + 1
-        new_pos = self.getRandomPos(nextZ)
 
-        self.players[pid].last_pos = pos
-        self.players[pid].pos = new_pos
-        self.players[pid].pos['level'] = nextZ
+        if self.gameMap[pos['level']][pos['r']][pos['c']] == '>':
+            nextZ = pos['level'] + 1
+            new_pos = self.getRandomPos(nextZ)
+
+            self.players[pid].last_pos = pos
+            self.players[pid].pos = new_pos
+            self.players[pid].pos['level'] = nextZ
+            return True
+        return False
 
     def pickupItem(self, pid):
         pos = self.players[pid].pos
         idx = -1
+        valid = False
         for i in range(len(self.items)):
             item = self.items[i]
             if item.pos['c'] == pos['c'] and item.pos['r'] == pos['r']:
@@ -307,24 +320,14 @@ class Game:
                 else:
                     self.players[pid].inventory[item._type] = 1
 
+                valid = True
+
                 break
 
 
         if idx != -1:
             del self.items[idx]
-            # return True
-        # return False
-        # item_id = None
-        # for i in range(len(self.items)):
-        #     item = self.items[i]
-
-        #     # item found
-        #     if item.pos['r'] == pos['r'] and item.pos['c'] == pos['c']:
-        #         item_id = i
-        #         print(i)
-
-        # if item_id is not None:
-        #     del self.items[i]
+        return valid
 
     def hasEnemy(self, pid, c, r):
         idx = -1
@@ -346,8 +349,11 @@ class Game:
         # wake up on move attempt
         self.players[pid].active = True 
 
-        if self.hasEnemy(pid, next_c, next_r):
-            pass  # no movement, attack handled elsewhere
+        attackVal = self.hasEnemy(pid, next_c, next_r)
+        if attackVal:
+            # no movement, attack handled elsewhere
+            # but send to client for sound
+            emit('serverResponse', {'resp': 'playerHitMonster'})
 
         elif self.isValid(pid, next_c, next_r, self.players[pid].pos['level']):
             self.players[pid].pos['c'] = next_c
@@ -420,19 +426,28 @@ def meditate_player(msg):
 def meditate_player(msg):
     global game
     if msg['playerID'] in game.players:
-        game.pickupItem(msg['playerID'])
+        resp = game.pickupItem(msg['playerID'])
+        if resp:
+            emit('serverResponse', {'resp': 'pickupSuccess'})
+
+    # emit('my response', {'data': msg['data']})
+
 
 @socketio.on('ascendplayer')
 def ascend_player(msg):
     global game
     if msg['playerID'] in game.players:
-        game.ascendPlayer(msg['playerID'])
+        resp = game.ascendPlayer(msg['playerID'])
+        if resp:
+            emit('serverResponse', {'resp': 'stairUpSuccess'})
 
 @socketio.on('descendplayer')
 def descend_player(msg):
     global game
     if msg['playerID'] in game.players:
-        game.descendPlayer(msg['playerID'])
+        resp = game.descendPlayer(msg['playerID'])
+        if resp:
+            emit('serverResponse', {'resp': 'stairDownSuccess'})
 
 @socketio.on('moveplayer')
 def move_player(msg):
