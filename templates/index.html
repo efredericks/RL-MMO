@@ -109,6 +109,10 @@
             }
         }
 
+        showInventory = () => {
+            alert("draw inventory")
+        }
+
         drawMap = () => {
             uiX = canvas.width - 260 + halfTile;
             uiY = tileSize;
@@ -169,7 +173,7 @@
                         // ctx.clearRect(item.pos.c * tileSize, item.pos.r * tileSize, tileSize, tileSize);
                         // ctx.fillText("a", item.pos.c * tileSize, item.pos.r * tileSize + tileSize);
                         ctx.clearRect(_x, _y-tileSize, tileSize, tileSize);
-                        ctx.fillText("a", _x, _y);
+                        ctx.fillText(item.sprite, _x, _y);
                     }
                 }
 
@@ -184,7 +188,7 @@
                         // ctx.clearRect(enemy.pos.c * tileSize, enemy.pos.r * tileSize, tileSize, tileSize);
                         // ctx.fillText("E", enemy.pos.c * tileSize, enemy.pos.r * tileSize + tileSize);
                         ctx.clearRect(_x, _y-tileSize, tileSize, tileSize);
-                        ctx.fillText("E", _x, _y);
+                        ctx.fillText(enemy.sprite, _x, _y);
                     }
                 }
 
@@ -226,7 +230,7 @@
                         } else
                             ctx.fillStyle = "#00ff00";
                         // ctx.fillText("@", _player.pos.c * tileSize, _player.pos.r * tileSize + tileSize);
-                        ctx.fillText("@", _x, _y);
+                        ctx.fillText(player.sprite, _x, _y);
                     }
                 }
                 ctx.globalAlpha = 1.0;
@@ -315,6 +319,10 @@
                         break;
                     case 'n':
                         movePlayer(socket, myID, 1, 1);
+                        break;
+
+                    case 'i':
+                        showInventory();
                         break;
 
                     // "meditate"

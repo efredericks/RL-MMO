@@ -13,6 +13,10 @@ DONT_PLACE = [
   "<", ">", 
 ]
 
+WALKABLE = [
+  ".", " ", "<", ">", 
+]
+
 ENEMY_DIRS = [
     {'r':-1, 'c': -1},
     {'r':-1, 'c': 0},
@@ -37,6 +41,22 @@ LOOKUP_STATS = {
         'gobbo': 2,
         'snek': 2,
         'rat': 1,
+    },
+    'sprite': {
+        # moveables
+        'player': '@',
+        'gobbo': 'g',
+        'snek': 's',
+        'rat': 'r',
+
+        # static
+        'apple': 'a',
+    },
+    # name: list[(tuple(type, max))]
+    'drops': {
+        'rat': [('apple',1)],
+        'gobbo': [('apple',3)],
+        'snek': [('apple',5)],
     }
 }
 ENTITY_NAMES = [
@@ -67,12 +87,14 @@ class Entity:
         self._type = _type
         self.pos = pos
         self.count = count
+        self.sprite = LOOKUP_STATS['sprite'][_type]
 
     def getTransmissable(self):
         return {
             'type': self._type,
             'pos': self.pos,
             'count': self.count,
+            'sprite': self.sprite,
         }
 
 # Entity that can move around the screen
@@ -100,13 +122,16 @@ class MoveableEntity(Entity):
             'maxHP': self.maxHP,
             'active': self.active,
             'inventory': self.inventory,
+            'sprite': self.sprite,
         }
 
 
 class Game:
     def __init__(self):
-        self.NUM_ROWS = 40#100
-        self.NUM_COLS = 40#100
+        self.NUM_ROWS = 50
+        self.NUM_COLS = 50
+        # self.NUM_ROWS = 1000
+        # self.NUM_COLS = 1000
 
         self.CAM_NUM_ROWS = 20
         self.CAM_NUM_COLS = 27
@@ -201,9 +226,11 @@ class Game:
                     e.pos['c'] = new_pos['c']
 
         # repopulate
-        if len(self.enemies) < MIN_ENEMIES_PER_LEVEL:
-            if random.random() > 0.5:
-                self.enemies.append(self.addEnemy())
+        # TBD - this needs to be on a per-level basis
+        # need to filter based on level
+        # if len(self.enemies) < MIN_ENEMIES_PER_LEVEL:
+        #     if random.random() > 0.5:
+        #         self.enemies.append(self.addEnemy("snek"))
                 # out of program scope -- need to figure out how to incorporate the socket
                 # in the scheduler
                 # emit('serverResponse', {'resp': 'monsterSpawn'})
@@ -230,17 +257,30 @@ class Game:
                 for c in range(self.NUM_COLS):
                     if r == 0 or c == 0 or r == self.NUM_ROWS-1 or c == self.NUM_COLS-1:
                         _map[z][r].append("#")
+                    elif r == 1 or c == 1 or r == self.NUM_ROWS-2 or c == self.NUM_COLS-2:
+                        _map[z][r].append(".")
                     else:
+                        # random placement
                         if random.random() > 0.9:
                             _map[z][r].append("#")
                         else:
-                            _map[z][r].append(".")
+                            _map[z][r].append(" ")
         return _map
 
     def initEnemies(self):
         _enemies = []
-        for _ in range(random.randint(MIN_ENEMIES_PER_LEVEL, MAX_ENEMIES_PER_LEVEL)): # TBD - relate to level
-            _enemies.append(self.addEnemy())
+
+        for z in range(self.NUM_LEVELS):
+            if z == 0:
+                for _ in range(random.randint(MIN_ENEMIES_PER_LEVEL, MAX_ENEMIES_PER_LEVEL)):
+                    _enemies.append(self.addEnemy("rat", self.getRandomPos(z)))
+            elif z == 1:
+                for _ in range(random.randint(MIN_ENEMIES_PER_LEVEL, MAX_ENEMIES_PER_LEVEL)):
+                    _enemies.append(self.addEnemy("gobbo", self.getRandomPos(z)))
+            else:
+                for _ in range(random.randint(MIN_ENEMIES_PER_LEVEL, MAX_ENEMIES_PER_LEVEL)):
+                    _enemies.append(self.addEnemy("snek", self.getRandomPos(z)))
+        
         return _enemies
 
     def initItems(self):
@@ -252,15 +292,15 @@ class Game:
     def addItem(self):
         return Entity("apple", self.getRandomPos(), str(uuid.uuid4()))
 
-    def addEnemy(self):
-        return MoveableEntity("snek", self.getRandomPos(level=2), str(uuid.uuid4()))
+    def addEnemy(self, _type, pos):
+        return MoveableEntity(_type, pos, str(uuid.uuid4()))
 
         # pos = self.getRandomPos()
         # return pos
 
     # can walk
     def isWalkable(self, c, r, z):
-        if c >= 0 and c <= self.NUM_COLS-1 and r >= 0 and r <= self.NUM_ROWS-1 and self.gameMap[z][r][c] != "#":
+        if c >= 0 and c <= self.NUM_COLS-1 and r >= 0 and r <= self.NUM_ROWS-1 and self.gameMap[z][r][c] in WALKABLE:#!= "#":
             return True
         return False
 
@@ -356,6 +396,9 @@ class Game:
                 idx = i
 
         if idx != -1:
+            epos = self.enemies[idx].pos
+            drop = LOOKUP_STATS['drops'][self.enemies[idx]._type]
+
             del self.enemies[idx]
             return True
         return False
