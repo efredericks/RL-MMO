@@ -32,7 +32,7 @@
 
         let uiX, uiY;
         let sounds;
-        let audioPlaying = true;
+        let audioPlaying = false;
 
         // pick a random index for each sound on [1,len]
         let soundMaps = {
@@ -119,66 +119,115 @@
             ctx.fillText("RL-MMO", uiX, uiY);
             uiY += tileSize;
 
-            if (gamePlayers !== undefined && gameMap !== undefined) {
+            if (gamePlayers !== undefined && gameMap !== undefined && gameEnemies !== undefined && gameItems !== undefined) {
                 let player = gamePlayers[myID];
 
-                for (let r = 0; r < gameMap[0].length; r++) {
-                    for (let c = 0; c < gameMap[0][0].length; c++) {
-                        ctx.fillText(gameMap[player.pos['level']][r][c], c * tileSize, r * tileSize + tileSize);
-                    }
-                }
-            }
+                // camera coords for this player
+                let startx, endx, starty, endy;
+                if (player.pos.c < gameWorld.CAM_HALF_COLS)
+                    startx = 0;
+                else if (player.pos.c >= gameWorld.NUM_COLS - gameWorld.CAM_HALF_COLS)
+                    startx = gameWorld.NUM_COLS - gameWorld.CAM_COLS;
+                else
+                    startx = player.pos.c - gameWorld.CAM_HALF_COLS;
 
-            if (gameItems !== undefined) {
+                if (player.pos.r < gameWorld.CAM_HALF_ROWS)
+                    starty = 0;
+                else if (player.pos.r >= gameWorld.NUM_ROWS - gameWorld.CAM_HALF_ROWS)
+                    starty = gameWorld.NUM_ROWS - gameWorld.CAM_ROWS;
+                else
+                    starty = player.pos.r - gameWorld.CAM_HALF_ROWS;
+
+                endx = startx + gameWorld.CAM_COLS;
+                endy = starty + gameWorld.CAM_ROWS;
+                if (endx > gameWorld.NUM_COLS) endx = gameWorld.NUM_COLS;
+                if (endy > gameWorld.NUM_ROWS) endy = gameWorld.NUM_ROWS;
+
+                let _x = 0;
+                let _y = 0;
+
+                // map
+                // for (let r = 0; r < gameMap[0].length; r++) {
+                //     for (let c = 0; c < gameMap[0][0].length; c++) {
+                for (let r = starty; r < endy; r++) {
+                    for (let c = startx; c < endx; c++) {
+                        // ctx.fillText(gameMap[player.pos['level']][r][c], c * tileSize, r * tileSize + tileSize);
+                        ctx.fillText(gameMap[player.pos['level']][r][c], _x, _y + tileSize);
+                        _x += tileSize;
+                    }
+                    _y += tileSize;
+                    _x = 0;
+                }
+
+                // items
                 ctx.fillStyle = "#00ff00";
                 for (const [item_id, item] of Object.entries(gameItems)) {
-                    ctx.clearRect(item.pos.c * tileSize, item.pos.r * tileSize, tileSize, tileSize);
-                    ctx.fillText("a", item.pos.c * tileSize, item.pos.r * tileSize + tileSize);
-                }
-            }
+                    if (item.pos.c >= startx && item.pos.c < endx && item.pos.r >= starty && item.pos.r < endy) {
+                        let _x = (item.pos.c - startx) * tileSize;
+                        let _y = (item.pos.r - starty) * tileSize + tileSize;
 
-            if (gameEnemies !== undefined) {
+                        // ctx.clearRect(item.pos.c * tileSize, item.pos.r * tileSize, tileSize, tileSize);
+                        // ctx.fillText("a", item.pos.c * tileSize, item.pos.r * tileSize + tileSize);
+                        ctx.clearRect(_x, _y-tileSize, tileSize, tileSize);
+                        ctx.fillText("a", _x, _y);
+                    }
+                }
+
+                // enemies
                 ctx.fillStyle = "#ffff00";
                 for (const [enemy_id, enemy] of Object.entries(gameEnemies)) {
-                    ctx.clearRect(enemy.pos.c * tileSize, enemy.pos.r * tileSize, tileSize, tileSize);
-                    ctx.fillText("E", enemy.pos.c * tileSize, enemy.pos.r * tileSize + tileSize);
+                    if (enemy.pos.c >= startx && enemy.pos.c < endx && enemy.pos.r >= starty && enemy.pos.r < endy) {
+
+                        let _x = (enemy.pos.c - startx) * tileSize;
+                        let _y = (enemy.pos.r - starty) * tileSize + tileSize;
+
+                        // ctx.clearRect(enemy.pos.c * tileSize, enemy.pos.r * tileSize, tileSize, tileSize);
+                        // ctx.fillText("E", enemy.pos.c * tileSize, enemy.pos.r * tileSize + tileSize);
+                        ctx.clearRect(_x, _y-tileSize, tileSize, tileSize);
+                        ctx.fillText("E", _x, _y);
+                    }
                 }
-            }
 
-
-            if (gamePlayers !== undefined) {
-                for (const [player_id, player] of Object.entries(gamePlayers)) {
+                // players
+                for (const [player_id, _player] of Object.entries(gamePlayers)) {
                     // TBD: filter entities beforehand and simply don't draw them
-                    ctx.clearRect(player.pos.c * tileSize, player.pos.r * tileSize, tileSize, tileSize);
+                    if (_player.pos.c >= startx && _player.pos.c < endx && _player.pos.r >= starty && _player.pos.r < endy) {
+
+                        let _x = (_player.pos.c - startx) * tileSize;
+                        let _y = (_player.pos.r - starty) * tileSize + tileSize;
+
+                        ctx.clearRect(_x, _y-tileSize, tileSize, tileSize);
+                        // ctx.clearRect(_player.pos.c * tileSize, _player.pos.r * tileSize, tileSize, tileSize);
 
 
-                    let a = 255;
-                    if (!player.active)
-                        a = 100;
-                    ctx.globalAlpha = a / 255;
+                        let a = 255;
+                        if (!_player.active)
+                            a = 100;
+                        ctx.globalAlpha = a / 255;
 
-                    if (player_id == myID) {
-                        // draw side information 
-                        let apples = 0;
-                        if ('apple' in player.inventory)
-                            apples = player.inventory['apple'];
+                        if (player_id == myID) {
+                            // draw side information 
+                            let apples = 0;
+                            if ('apple' in _player.inventory)
+                                apples = _player.inventory['apple'];
 
-                        ctx.fillStyle = "#eee";
-                        ctx.fillText(`Player ${myID}`, uiX, uiY);
-                        uiY += tileSize;
-                        ctx.fillText(`HP: ${player.hp}/${player.maxHP}`, uiX, uiY);
-                        uiY += tileSize;
-                        ctx.fillText(`Apples: ${apples}`, uiX, uiY);
-                        uiY += tileSize;
-                        ctx.fillText(`Level: ${player.pos.level + 1}`, uiX, uiY);
+                            ctx.fillStyle = "#eee";
+                            ctx.fillText(`_player ${myID}`, uiX, uiY);
+                            uiY += tileSize;
+                            ctx.fillText(`HP: ${_player.hp}/${_player.maxHP}`, uiX, uiY);
+                            uiY += tileSize;
+                            ctx.fillText(`Apples: ${apples}`, uiX, uiY);
+                            uiY += tileSize;
+                            ctx.fillText(`Level: ${_player.pos.level + 1}`, uiX, uiY);
 
 
-                        // fill for player entity
-                        ctx.fillStyle = "#ff00ff";
-                    } else
-                        ctx.fillStyle = "#00ff00";
-                    ctx.fillText("@", player.pos.c * tileSize, player.pos.r * tileSize + tileSize);
-
+                            // fill for _player entity
+                            ctx.fillStyle = "#ff00ff";
+                        } else
+                            ctx.fillStyle = "#00ff00";
+                        // ctx.fillText("@", _player.pos.c * tileSize, _player.pos.r * tileSize + tileSize);
+                        ctx.fillText("@", _x, _y);
+                    }
                 }
                 ctx.globalAlpha = 1.0;
             }
@@ -221,6 +270,8 @@
 
             // temp - move to python
             gameMap = undefined;
+            gameWorld = undefined;
+
             gamePlayers = undefined;
             gameEnemies = undefined;
             gameItems = undefined;
@@ -290,6 +341,9 @@
                     // debug
                     case '.':
                         console.log(gamePlayers[myID]);
+                        console.log(gameWorld)
+                        console.log(gameMap)
+
                         break;
                 }
 
@@ -309,8 +363,11 @@
                 gamePlayers = JSON.parse(msg.players);
                 gameEnemies = JSON.parse(msg.enemies);
                 gameItems = JSON.parse(msg.items);
-                gameMap = JSON.parse(msg.map)
-                console.log(gamePlayers)
+
+                gameWorld = JSON.parse(msg.world)
+                gameMap = gameWorld.gameMap;
+
+                console.log(gameWorld)
                 console.log(gameEnemies)
                 console.log(gameMap)
                 console.log(gameItems)
@@ -373,7 +430,7 @@
 
         /* based on: https://codepen.io/edmundojr/pen/xOYJGw */
         body {
-            background: linear-gradient(90deg, #333 21px, transparent 1%) center, linear-gradient(#333 21px, transparent 1%) center, #a799cc;
+            background: linear-gradient(90deg, #111 21px, transparent 1%) center, linear-gradient(#111 21px, transparent 1%) center, #a799cc;
             background-size: 22px 22px;
         }
 
@@ -402,7 +459,25 @@
             border: 5px solid #eee;
             border-radius: 20px;
             padding: 10px;
+            /* box-shadow: 0px -15px 45px 0 rgba(220,0,220,0.25), 0 15px 45px 0 rgba(0, 229, 255, 0.25); */
+
+            animation: moveShadow ease-in-out 15s infinite;
         }
+
+        @keyframes moveShadow {
+            0% {
+                box-shadow: -15px -15px 45px 0 rgba(220, 0, 220, 0.25), 15px 15px 45px 0 rgba(0, 229, 255, 0.25);
+            }
+
+            50% {
+                box-shadow: 15px -15px 145px 0 rgba(220, 0, 220, 0.25), -15px 15px 145px 0 rgba(0, 229, 255, 0.25);
+            }
+
+            100% {
+                box-shadow: -15px -15px 45px 0 rgba(220, 0, 220, 0.25), 15px 15px 45px 0 rgba(0, 229, 255, 0.25);
+            }
+        }
+
 
         #ui {
             position: absolute;
@@ -418,7 +493,7 @@
         <fieldset>
             <legend>UI</legend>
             <div>
-                <input type="checkbox" id="allowAudio" name="allowAudio" checked />
+                <input type="checkbox" id="allowAudio" name="allowAudio" />
                 <label for="allowAudio">Audio?</label>
             </div>
         </fieldset>

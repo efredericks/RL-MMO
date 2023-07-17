@@ -27,7 +27,7 @@ ENEMY_DIRS = [
 MAX_ENEMIES_PER_LEVEL = 20
 MIN_ENEMIES_PER_LEVEL = 5
 
-MIN_ITEMS_PER_LEVEL = 3
+MIN_ITEMS_PER_LEVEL = 5 
 MAX_ITEMS_PER_LEVEL = 10 
 
 
@@ -105,10 +105,29 @@ class MoveableEntity(Entity):
 
 class Game:
     def __init__(self):
-        self.NUM_ROWS = 20
-        self.NUM_COLS = 27
+        self.NUM_ROWS = 40#100
+        self.NUM_COLS = 40#100
+
+        self.CAM_NUM_ROWS = 20
+        self.CAM_NUM_COLS = 27
+        self.CAM_HALF_ROWS = self.CAM_NUM_ROWS // 2
+        self.CAM_HALF_COLS = self.CAM_NUM_COLS // 2
+
+
         self.NUM_LEVELS = 3
+
+
+
+        self.world = {}
         self.gameMap = self.initMap()
+        self.world['gameMap'] = self.gameMap
+        self.world['NUM_ROWS'] = self.NUM_ROWS
+        self.world['NUM_COLS'] = self.NUM_COLS
+        self.world['CAM_ROWS'] = self.CAM_NUM_ROWS
+        self.world['CAM_COLS'] = self.CAM_NUM_COLS
+        self.world['CAM_HALF_ROWS'] = self.CAM_HALF_ROWS
+        self.world['CAM_HALF_COLS'] = self.CAM_HALF_COLS
+
         self.players = {}
         self.enemies = self.initEnemies()
         self.items = self.initItems()
@@ -360,8 +379,8 @@ class Game:
             self.players[pid].pos['r'] = next_r
 
     # getters/setters
-    def getJSONMap(self):
-        return json.dumps(self.gameMap)
+    def getJSONWorld(self):
+        return json.dumps(self.world)#gameMap)
 
     def getJSONPlayers(self, level):
         op = {}
@@ -409,7 +428,7 @@ def test_connect():
     emit('mapload', {
         'playerID': request.sid,
         'players': game.getJSONPlayers(level=0), 
-        'map': game.getJSONMap(),
+        'world': game.getJSONWorld(),
         'enemies': game.getJSONEnemies(level=0),
         'items': game.getJSONItems(level=0),
     })
@@ -464,11 +483,9 @@ def sendTick(msg):
     if msg['playerID'] in game.players:
         level = game.players[msg['playerID']].pos['level']
         emit('tick', {
-            # 'playerID': request.sid,
             'players': game.getJSONPlayers(level), 
             'enemies': game.getJSONEnemies(level),
             'items': game.getJSONItems(level),
-            # 'map': game.getJSONMap()
         })
 
 @socketio.on('disconnect')
