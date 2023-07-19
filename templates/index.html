@@ -34,6 +34,34 @@
         let sounds;
         let audioPlaying = false;
 
+        // spritesheet
+        let SPRITESHEET = {
+            // env
+            wall1: { sprite: '#', color: '#ccc' },
+            wall2: { sprite: '#', color: '#999' },
+            floor1: { sprite: '.', color: '#333' },
+            floor2: { sprite: '.', color: '#666' },
+            water1: { sprite: '~', color: '#008080' },
+            water2: { sprite: '~', color: '#0011ee' },
+            empty: { sprite: ' ', color: '#000' },
+            stairsDown: { sprite: '>', color: '#00ffff' },
+            stairsUp: { sprite: '<', color: '#00ffff' },
+
+            // players
+            player: { 'sprite': '@', 'color': '#ff00ffff' },
+            player_meditate: { 'sprite': '@', 'color': '#ff00ffaa' },
+            other_player: { 'sprite': '@', 'color': '#00ff00ff' },
+            other_player_meditate: { 'sprite': '@', 'color': '#00ff00aa' },
+
+            // monsters
+            rat: { sprite: 'r', color: '#ffff00' },
+            snek: { sprite: 's', color: '#ffff00' },
+            gobbo: { sprite: 'g', color: '#ffff00' },
+
+            // items
+            apple: { sprite: 'a', color: '#00ff00' },
+        };
+
         // pick a random index for each sound on [1,len]
         let soundMaps = {
             monHit: 2,
@@ -156,7 +184,12 @@
                 for (let r = starty; r < endy; r++) {
                     for (let c = startx; c < endx; c++) {
                         // ctx.fillText(gameMap[player.pos['level']][r][c], c * tileSize, r * tileSize + tileSize);
-                        ctx.fillText(gameMap[player.pos['level']][r][c], _x, _y + tileSize);
+
+                        let tile = gameMap[player.pos['level']][r][c];
+                        //assert 
+
+                        ctx.fillStyle = SPRITESHEET[tile].color;
+                        ctx.fillText(SPRITESHEET[tile].sprite, _x, _y + tileSize);
                         _x += tileSize;
                     }
                     _y += tileSize;
@@ -164,7 +197,7 @@
                 }
 
                 // items
-                ctx.fillStyle = "#00ff00";
+                // ctx.fillStyle = "#00ff00";
                 for (const [item_id, item] of Object.entries(gameItems)) {
                     if (item.pos.c >= startx && item.pos.c < endx && item.pos.r >= starty && item.pos.r < endy) {
                         let _x = (item.pos.c - startx) * tileSize;
@@ -172,8 +205,10 @@
 
                         // ctx.clearRect(item.pos.c * tileSize, item.pos.r * tileSize, tileSize, tileSize);
                         // ctx.fillText("a", item.pos.c * tileSize, item.pos.r * tileSize + tileSize);
-                        ctx.clearRect(_x, _y-tileSize, tileSize, tileSize);
-                        ctx.fillText(item.sprite, _x, _y);
+                        ctx.clearRect(_x, _y - tileSize, tileSize, tileSize);
+
+                        ctx.fillStyle = SPRITESHEET[item.type].color;
+                        ctx.fillText(SPRITESHEET[item.type].sprite, _x, _y);
                     }
                 }
 
@@ -187,8 +222,10 @@
 
                         // ctx.clearRect(enemy.pos.c * tileSize, enemy.pos.r * tileSize, tileSize, tileSize);
                         // ctx.fillText("E", enemy.pos.c * tileSize, enemy.pos.r * tileSize + tileSize);
-                        ctx.clearRect(_x, _y-tileSize, tileSize, tileSize);
-                        ctx.fillText(enemy.sprite, _x, _y);
+                        ctx.clearRect(_x, _y - tileSize, tileSize, tileSize);
+
+                        ctx.fillStyle = SPRITESHEET[enemy.type].color;
+                        ctx.fillText(SPRITESHEET[enemy.type].sprite, _x, _y);
                     }
                 }
 
@@ -200,14 +237,17 @@
                         let _x = (_player.pos.c - startx) * tileSize;
                         let _y = (_player.pos.r - starty) * tileSize + tileSize;
 
-                        ctx.clearRect(_x, _y-tileSize, tileSize, tileSize);
+                        ctx.clearRect(_x, _y - tileSize, tileSize, tileSize);
                         // ctx.clearRect(_player.pos.c * tileSize, _player.pos.r * tileSize, tileSize, tileSize);
 
 
-                        let a = 255;
-                        if (!_player.active)
-                            a = 100;
-                        ctx.globalAlpha = a / 255;
+                        // let a = 255;
+                        // if (!_player.active)
+                        //     a = 100;
+                        // ctx.globalAlpha = a / 255;
+                        let playerKey = "";
+                        if (!_player.active) // prepend later
+                            playerKey = "_meditate";
 
                         if (player_id == myID) {
                             // draw side information 
@@ -225,15 +265,21 @@
                             ctx.fillText(`Level: ${_player.pos.level + 1}`, uiX, uiY);
 
 
+                            playerKey = "player" + playerKey;
+
                             // fill for _player entity
-                            ctx.fillStyle = "#ff00ff";
-                        } else
-                            ctx.fillStyle = "#00ff00";
+                            // ctx.fillStyle = "#ff00ff";
+                        } else {
+                            playerKey = "other_player" + playerKey;
+                        }
+                        ctx.fillStyle = SPRITESHEET[playerKey].color;
+                        // ctx.fillStyle = "#00ff00";
+
                         // ctx.fillText("@", _player.pos.c * tileSize, _player.pos.r * tileSize + tileSize);
-                        ctx.fillText(player.sprite, _x, _y);
+                        ctx.fillText(SPRITESHEET[playerKey].sprite, _x, _y);
                     }
                 }
-                ctx.globalAlpha = 1.0;
+                // ctx.globalAlpha = 1.0;
             }
 
         }

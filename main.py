@@ -10,11 +10,15 @@ import uuid
 
 # lookup table for special tiles that are walkable but can't have things placed on them
 DONT_PLACE = [
-  "<", ">", 
+#   "<", ">", 
+    'stairsDown', 'stairsUp',
+    'water1',
 ]
 
 WALKABLE = [
-  ".", " ", "<", ">", 
+#   ".", " ", "<", ">", 
+    'floor1', 'floor2', 'water1', 'empty',
+    'stairsDown', 'stairsUp',
 ]
 
 ENEMY_DIRS = [
@@ -42,6 +46,7 @@ LOOKUP_STATS = {
         'snek': 2,
         'rat': 1,
     },
+    # probably removeable as rendering is offloaded to the client now
     'sprite': {
         # moveables
         'player': '@',
@@ -59,6 +64,8 @@ LOOKUP_STATS = {
         'snek': [('apple',5)],
     }
 }
+
+# this is probably redundant and can be removed - just check for one of the other globals
 ENTITY_NAMES = [
     # moveable
     'player',
@@ -67,6 +74,7 @@ ENTITY_NAMES = [
     # static
     'apple',
 ]
+
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 's3cr3t'
@@ -240,12 +248,12 @@ class Game:
         # down
         for z in range(self.NUM_LEVELS-1):
             stair_pos = self.getRandomPos(z)
-            self.gameMap[z][stair_pos['r']][stair_pos['c']] = ">"
+            self.gameMap[z][stair_pos['r']][stair_pos['c']] = "stairsDown"
 
         # up
         for z in range(1, self.NUM_LEVELS):
             stair_pos = self.getRandomPos(z)
-            self.gameMap[z][stair_pos['r']][stair_pos['c']] = "<"
+            self.gameMap[z][stair_pos['r']][stair_pos['c']] = "stairsUp"
 
     def initMap(self):
         _map = []
@@ -256,15 +264,16 @@ class Game:
                 _map[z].append([])
                 for c in range(self.NUM_COLS):
                     if r == 0 or c == 0 or r == self.NUM_ROWS-1 or c == self.NUM_COLS-1:
-                        _map[z][r].append("#")
+                        _map[z][r].append("water2")
                     elif r == 1 or c == 1 or r == self.NUM_ROWS-2 or c == self.NUM_COLS-2:
-                        _map[z][r].append(".")
+                        # _map[z][r].append(random.choice(['floor1', 'floor2']))
+                        _map[z][r].append('water1')
                     else:
                         # random placement
                         if random.random() > 0.9:
-                            _map[z][r].append("#")
+                            _map[z][r].append("wall2")
                         else:
-                            _map[z][r].append(" ")
+                            _map[z][r].append("empty")
         return _map
 
     def initEnemies(self):
@@ -340,7 +349,7 @@ class Game:
     def ascendPlayer(self, pid):
         pos = self.players[pid].pos
 
-        if self.gameMap[pos['level']][pos['r']][pos['c']] == '<':
+        if self.gameMap[pos['level']][pos['r']][pos['c']] == 'stairsUp':
             nextZ = pos['level'] - 1
             new_pos = self.getRandomPos(nextZ)
 
@@ -355,7 +364,7 @@ class Game:
     def descendPlayer(self, pid):
         pos = self.players[pid].pos
 
-        if self.gameMap[pos['level']][pos['r']][pos['c']] == '>':
+        if self.gameMap[pos['level']][pos['r']][pos['c']] == 'stairsDown':
             nextZ = pos['level'] + 1
             new_pos = self.getRandomPos(nextZ)
 
