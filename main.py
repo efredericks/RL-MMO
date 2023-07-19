@@ -2,6 +2,8 @@ from flask import Flask, request, render_template
 from flask_socketio import SocketIO, emit
 from flask_apscheduler import APScheduler
 
+import opensimplex
+
 import logging
 
 import json
@@ -10,11 +12,15 @@ import uuid
 
 # lookup table for special tiles that are walkable but can't have things placed on them
 DONT_PLACE = [
-  "<", ">", 
+#   "<", ">", 
+    'stairsDown', 'stairsUp',
+    'water1',
 ]
 
 WALKABLE = [
-  ".", " ", "<", ">", 
+#   ".", " ", "<", ">", 
+    'floor1', 'floor2', 'water1', 'empty',
+    'stairsDown', 'stairsUp',
 ]
 
 ENEMY_DIRS = [
@@ -35,6 +41,9 @@ MIN_ITEMS_PER_LEVEL = 5
 MAX_ITEMS_PER_LEVEL = 10 
 
 
+DROP_TYPE_ID = 0
+DROP_NUM_ID = 1
+DROP_CHANCE_ID = 2
 LOOKUP_STATS = {
     'maxHP': {
         'player': 10,
@@ -42,6 +51,7 @@ LOOKUP_STATS = {
         'snek': 2,
         'rat': 1,
     },
+    # probably removeable as rendering is offloaded to the client now
     'sprite': {
         # moveables
         'player': '@',
@@ -52,13 +62,15 @@ LOOKUP_STATS = {
         # static
         'apple': 'a',
     },
-    # name: list[(tuple(type, max))]
+    # name: list[(tuple(type, max, chance))] - random() > chance
     'drops': {
-        'rat': [('apple',1)],
-        'gobbo': [('apple',3)],
-        'snek': [('apple',5)],
+        'rat': [('apple', 1, 0.25)],
+        'gobbo': [('apple', 3, 0.35)],
+        'snek': [('apple', 5, 0.5)],
     }
 }
+
+# this is probably redundant and can be removed - just check for one of the other globals
 ENTITY_NAMES = [
     # moveable
     'player',
@@ -67,6 +79,7 @@ ENTITY_NAMES = [
     # static
     'apple',
 ]
+
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 's3cr3t'
@@ -240,12 +253,12 @@ class Game:
         # down
         for z in range(self.NUM_LEVELS-1):
             stair_pos = self.getRandomPos(z)
-            self.gameMap[z][stair_pos['r']][stair_pos['c']] = ">"
+            self.gameMap[z][stair_pos['r']][stair_pos['c']] = "stairsDown"
 
         # up
         for z in range(1, self.NUM_LEVELS):
             stair_pos = self.getRandomPos(z)
-            self.gameMap[z][stair_pos['r']][stair_pos['c']] = "<"
+            self.gameMap[z][stair_pos['r']][stair_pos['c']] = "stairsUp"
 
     def initMap(self):
         _map = []
@@ -256,15 +269,16 @@ class Game:
                 _map[z].append([])
                 for c in range(self.NUM_COLS):
                     if r == 0 or c == 0 or r == self.NUM_ROWS-1 or c == self.NUM_COLS-1:
-                        _map[z][r].append("#")
+                        _map[z][r].append("water2")
                     elif r == 1 or c == 1 or r == self.NUM_ROWS-2 or c == self.NUM_COLS-2:
-                        _map[z][r].append(".")
+                        # _map[z][r].append(random.choice(['floor1', 'floor2']))
+                        _map[z][r].append('water1')
                     else:
                         # random placement
                         if random.random() > 0.9:
-                            _map[z][r].append("#")
+                            _map[z][r].append("wall2")
                         else:
-                            _map[z][r].append(" ")
+                            _map[z][r].append("empty")
         return _map
 
     def initEnemies(self):
@@ -289,8 +303,10 @@ class Game:
             _items.append(self.addItem())
         return _items
 
-    def addItem(self):
-        return Entity("apple", self.getRandomPos(), str(uuid.uuid4()))
+    def addItem(self, _type="apple", pos=None):
+        if pos == None:
+            pos = self.getRandomPos()
+        return Entity(_type, pos, str(uuid.uuid4()))
 
     def addEnemy(self, _type, pos):
         return MoveableEntity(_type, pos, str(uuid.uuid4()))
@@ -340,7 +356,7 @@ class Game:
     def ascendPlayer(self, pid):
         pos = self.players[pid].pos
 
-        if self.gameMap[pos['level']][pos['r']][pos['c']] == '<':
+        if self.gameMap[pos['level']][pos['r']][pos['c']] == 'stairsUp':
             nextZ = pos['level'] - 1
             new_pos = self.getRandomPos(nextZ)
 
@@ -355,7 +371,7 @@ class Game:
     def descendPlayer(self, pid):
         pos = self.players[pid].pos
 
-        if self.gameMap[pos['level']][pos['r']][pos['c']] == '>':
+        if self.gameMap[pos['level']][pos['r']][pos['c']] == 'stairsDown':
             nextZ = pos['level'] + 1
             new_pos = self.getRandomPos(nextZ)
 
@@ -388,16 +404,18 @@ class Game:
             del self.items[idx]
         return valid
 
-    def hasEnemy(self, pid, c, r):
+    def hasEnemy(self, pid, c, r, l):
         idx = -1
         for i in range(len(self.enemies)):
             e = self.enemies[i]
-            if e.pos['c'] == c and e.pos['r'] == r:
+            if e.pos['c'] == c and e.pos['r'] == r and e.pos['level'] == l:
                 idx = i
 
         if idx != -1:
             epos = self.enemies[idx].pos
-            drop = LOOKUP_STATS['drops'][self.enemies[idx]._type]
+            drop = random.choice(LOOKUP_STATS['drops'][self.enemies[idx]._type])
+            if random.random() > drop[DROP_CHANCE_ID]:
+                self.items.append(self.addItem(drop[DROP_TYPE_ID], epos))
 
             del self.enemies[idx]
             return True
@@ -411,7 +429,7 @@ class Game:
         # wake up on move attempt
         self.players[pid].active = True 
 
-        attackVal = self.hasEnemy(pid, next_c, next_r)
+        attackVal = self.hasEnemy(pid, next_c, next_r, self.players[pid].pos['level'])
         if attackVal:
             # no movement, attack handled elsewhere
             # but send to client for sound
