@@ -34,6 +34,8 @@
         let sounds;
         let audioPlaying = false;
 
+        let MSG_TIME = 5; // duplicate from main.py
+
         // spritesheet
         let SPRITESHEET = {
             // env
@@ -60,6 +62,11 @@
 
             // items
             apple: { sprite: 'a', color: '#00ff00' },
+
+            // chat
+            enemy_chat: { color: '#666666' },
+            player_chat: { color: '#aa00aa' },
+            other_player_chat: { color: '#00aa00' },
         };
 
         // pick a random index for each sound on [1,len]
@@ -77,6 +84,11 @@
             min = Math.ceil(min);
             max = Math.floor(max);
             return Math.floor(Math.random() * (max - min) + min);
+        }
+
+        // map function similar to p5.js
+        p5map = (n, start1, stop1, start2, stop2) => {
+            return ((n - start1) / (stop1 - start1)) * (stop2 - start2) + start2
         }
 
         // c/o https://nluqo.github.io/broughlike-tutorial/stage7.html
@@ -226,6 +238,13 @@
 
                         ctx.fillStyle = SPRITESHEET[enemy.type].color;
                         ctx.fillText(SPRITESHEET[enemy.type].sprite, _x, _y);
+
+                        if (enemy.chatlog.length > 0) {
+                            ctx.globalAlpha = p5map(enemy.chatlog[1], MSG_TIME, 1, 0.8, 0.0);
+                            ctx.fillStyle = SPRITESHEET['enemy_chat'].color;
+                            ctx.fillText(enemy.chatlog[0], _x - halfTile, _y - tileSize);
+                            ctx.globalAlpha = 1.0;
+                        }
                     }
                 }
 
@@ -280,6 +299,20 @@
 
                         // ctx.fillText("@", _player.pos.c * tileSize, _player.pos.r * tileSize + tileSize);
                         ctx.fillText(SPRITESHEET[playerKey].sprite, _x, _y);
+
+                        if (_player.chatlog.length > 0) {
+                            let a = p5map(_player.chatlog[1], MSG_TIME, 1, 0.8, 0.0);
+                            // console.log(player_id, a, _player.chatlog);
+                            ctx.globalAlpha = a;
+
+                            if (player_id == myID)
+                                ctx.fillStyle = SPRITESHEET['player_chat'].color;
+                            else
+                                ctx.fillStyle = SPRITESHEET['other_player_chat'].color;
+
+                            ctx.fillText(_player.chatlog[0], _x - halfTile, _y - tileSize);
+                            ctx.globalAlpha = 1.0;
+                        }
                     }
                 }
                 // ctx.globalAlpha = 1.0;
@@ -334,6 +367,15 @@
 
             initSounds();
 
+            // handle chat
+            document.getElementById("btnChat").onclick = () => {
+                let txt = document.getElementById("chat");
+                if (txt.value.trim() != "") {
+                    socket.emit('chatRequest', { playerID: myID, chatMessage: txt.value.trim() });
+                    txt.value = "";
+                    txt.focus();
+                }
+            }
 
             // keyboard handling
             addEventListener("keydown", (ev) => {
@@ -541,6 +583,11 @@
             top: 10px;
             left: 10px;
         }
+
+        input,
+        button {
+            color: #333;
+        }
     </style>
 </head>
 
@@ -550,8 +597,13 @@
         <fieldset>
             <legend>UI</legend>
             <div>
-                <input type="checkbox" id="allowAudio" name="allowAudio" />
                 <label for="allowAudio">Audio?</label>
+                <input type="checkbox" id="allowAudio" name="allowAudio" />
+            </div>
+            <div>
+                <label for="chat">Chat</label>
+                <input type="text" id="chat" name="chat" maxlength="20" />
+                <button id="btnChat">Send</button>
             </div>
         </fieldset>
     </div>

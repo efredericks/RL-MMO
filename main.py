@@ -2,7 +2,7 @@ from flask import Flask, request, render_template
 from flask_socketio import SocketIO, emit
 from flask_apscheduler import APScheduler
 
-import opensimplex
+import tcod
 
 import logging
 
@@ -40,6 +40,7 @@ MIN_ENEMIES_PER_LEVEL = 5
 MIN_ITEMS_PER_LEVEL = 5 
 MAX_ITEMS_PER_LEVEL = 10 
 
+MSG_TIME = 5
 
 DROP_TYPE_ID = 0
 DROP_NUM_ID = 1
@@ -127,8 +128,26 @@ class MoveableEntity(Entity):
         self.active = True
         self.inventory = {}
 
+        # interaction - ['msg', ticksRemaining]
+        self.chatlog = []
+
+    # chat related - only 1 can be active per entity
+    def addChat(self, msg):
+        self.chatlog = [msg, MSG_TIME]
+
+    def hasChat(self):
+        if len(self.chatlog) > 0:
+            return True
+        return False
+
+    def updateChats(self):
+        if self.hasChat():
+            self.chatlog[1] -= 1
+            if self.chatlog[1] <= 0:
+                self.chatlog = []
+
     def getTransmissable(self):
-        return {
+        retval = {
             'type': self._type,
             'pos': self.pos,
             'hp': self.hp,
@@ -136,7 +155,10 @@ class MoveableEntity(Entity):
             'active': self.active,
             'inventory': self.inventory,
             'sprite': self.sprite,
+            'chatlog' : self.chatlog,
         }
+
+        return retval
 
 
 class Game:
@@ -195,7 +217,9 @@ class Game:
                 # get closest player
                 min_dist, min_id = 999, "none"
 
-
+                # give the enemy some flavor
+                if random.random() > 0.95 and not e.hasChat():
+                    e.addChat("!~@#!")
 
                 # filter players on current level
                 # players_on_level = filter(lambda l: l.pos['level'] == e.pos['level'], self.players)
@@ -238,6 +262,7 @@ class Game:
                     e.pos['r'] = new_pos['r']
                     e.pos['c'] = new_pos['c']
 
+            e.updateChats()
         # repopulate
         # TBD - this needs to be on a per-level basis
         # need to filter based on level
@@ -247,6 +272,10 @@ class Game:
                 # out of program scope -- need to figure out how to incorporate the socket
                 # in the scheduler
                 # emit('serverResponse', {'resp': 'monsterSpawn'})
+
+        # update loop for all players
+        for k, p in self.players.items():
+            p.updateChats()
 
 
     def placeStairs(self):
@@ -352,6 +381,10 @@ class Game:
     def meditatePlayer(self, pid):
         self.players[pid].active = not self.players[pid].active
 
+    # handle a new chat message
+    def playerAddChat(self, pid, msg):
+        self.players[pid].addChat(msg)
+
     # go up a level
     def ascendPlayer(self, pid):
         pos = self.players[pid].pos
@@ -448,6 +481,7 @@ class Game:
         for k,v in self.players.items():
             if v.pos['level'] == level:
                 op[v.entity_id] = v.getTransmissable()
+
         return json.dumps(op)
 
     def getJSONEnemies(self, level):
@@ -512,6 +546,12 @@ def meditate_player(msg):
 
     # emit('my response', {'data': msg['data']})
 
+# player is sending a chat message
+@socketio.on('chatRequest')
+def handle_chat(msg):
+    global game
+    if msg['playerID'] in game.players:
+        game.playerAddChat(msg['playerID'], msg['chatMessage'])
 
 @socketio.on('ascendplayer')
 def ascend_player(msg):
