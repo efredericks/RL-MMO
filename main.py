@@ -2,7 +2,7 @@ from flask import Flask, request, render_template
 from flask_socketio import SocketIO, emit
 from flask_apscheduler import APScheduler
 
-import tcod
+import tcod, opensimplex
 
 import logging
 
@@ -39,6 +39,14 @@ MIN_ENEMIES_PER_LEVEL = 5
 
 MIN_ITEMS_PER_LEVEL = 5 
 MAX_ITEMS_PER_LEVEL = 10 
+
+ENEMY_FLAVOR_PHRASES_RANDOM = [
+    "!~@#!",
+    "!!",
+    "~!@",
+    "rawr",
+    "HI",
+]
 
 MSG_TIME = 5
 
@@ -92,6 +100,8 @@ scheduler.start()
 
 socketio = SocketIO(app)
 
+opensimplex.seed(1)
+
 # Base entity class
 class Entity:
     def __init__(self, _type, pos, entity_id=None, count=None):
@@ -131,6 +141,18 @@ class MoveableEntity(Entity):
         # interaction - ['msg', ticksRemaining]
         self.chatlog = []
 
+    # update health
+    def updateHealth(self, amt):
+        self.hp += amt
+
+        # constrain
+        if self.hp > self.maxHP: 
+            self.hp = self.maxHP
+            return False
+        if self.hp <= 0:
+            return False
+        return True
+
     # chat related - only 1 can be active per entity
     def addChat(self, msg):
         self.chatlog = [msg, MSG_TIME]
@@ -163,6 +185,8 @@ class MoveableEntity(Entity):
 
 class Game:
     def __init__(self):
+
+
         self.NUM_ROWS = 50
         self.NUM_COLS = 50
         # self.NUM_ROWS = 1000
@@ -197,6 +221,7 @@ class Game:
 
     def addPlayer(self, player_id):
         self.players[player_id] = MoveableEntity("player", self.getRandomPos(), player_id)
+        # self.players[player_id].hp = 2
         # pos = self.getRandomPos()
         # self.players[player_id] = {
         #     'r': pos['r'],
@@ -219,7 +244,7 @@ class Game:
 
                 # give the enemy some flavor
                 if random.random() > 0.95 and not e.hasChat():
-                    e.addChat("!~@#!")
+                    e.addChat(random.choice(ENEMY_FLAVOR_PHRASES_RANDOM))
 
                 # filter players on current level
                 # players_on_level = filter(lambda l: l.pos['level'] == e.pos['level'], self.players)
@@ -291,6 +316,7 @@ class Game:
 
     def initMap(self):
         _map = []
+
         for z in range(self.NUM_LEVELS):
             _map.append([])
 
@@ -303,11 +329,22 @@ class Game:
                         # _map[z][r].append(random.choice(['floor1', 'floor2']))
                         _map[z][r].append('water1')
                     else:
+                        n = opensimplex.noise2(c*0.1, r*0.1)
+                        newtile = "empty"
+                        if n < -0.8 or n > 0.8:
+                            newtile = "water2"
+                        elif n < -0.6 or n > 0.6:
+                            newtile = "water1"
+                        elif n < -0.4 or n > 0.4:
+                            newtile = "floor2"
+                        elif n < -0.2 or n > 0.2:
+                            newtile = "floor1"
+                        _map[z][r].append(newtile)
                         # random placement
-                        if random.random() > 0.9:
-                            _map[z][r].append("wall2")
-                        else:
-                            _map[z][r].append("empty")
+                        # if random.random() > 0.9:
+                        #     _map[z][r].append("wall2")
+                        # else:
+                        #     _map[z][r].append("empty")
         return _map
 
     def initEnemies(self):
@@ -413,6 +450,19 @@ class Game:
             self.players[pid].pos['level'] = nextZ
             return True
         return False
+
+    # all we have right now are apples so all we need
+    # to worry about is one - if we complexify things
+    # this will be trickier to manage
+    def useItem(self, pid):
+        if 'apple' in self.players[pid].inventory:
+            apples = self.players[pid].inventory['apple']
+            if apples > 0:
+                apples -= 1
+                return self.players[pid].updateHealth(2)
+            # return True
+        return False
+
 
     def pickupItem(self, pid):
         pos = self.players[pid].pos
@@ -535,6 +585,14 @@ def meditate_player(msg):
     if msg['playerID'] in game.players:
         game.meditatePlayer(msg['playerID'])
 
+# use active item
+@socketio.on('useitem')
+def meditate_player(msg):
+    global game
+    if msg['playerID'] in game.players:
+        resp = game.useItem(msg['playerID'])
+        if resp:
+            emit('serverResponse', {'resp': 'useItemSuccess'})
 # pickup item under the player
 @socketio.on('pickupitem')
 def meditate_player(msg):

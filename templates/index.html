@@ -325,6 +325,9 @@
         meditatePlayer = (socket, pid) => {
             socket.emit('meditateplayer', { playerID: pid });
         }
+        useItem = (socket, pid) => {
+            socket.emit('useitem', { playerID: pid });
+        }
         pickupItem = (socket, pid) => {
             socket.emit('pickupitem', { playerID: pid });
         }
@@ -421,6 +424,12 @@
                         meditatePlayer(socket, myID);
                         break;
 
+                    // use item - in this case all we have
+                    // are apples
+                    case '1':
+                        useItem(socket, myID);
+                        break;
+
                     // pickup the top item you see
                     // TBD - maybe pick up them all, we'll see how it shakes out
                     case ',':
@@ -488,6 +497,7 @@
                 if (audioPlaying) {
                     switch (msg.resp) {
                         case 'pickupSuccess':
+                        case 'useItemSuccess':
                             playSound('pickup');
                             break;
                         case 'stairUpSuccess':
