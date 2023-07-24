@@ -89,6 +89,10 @@ ENTITY_NAMES = [
     'apple',
 ]
 
+# utility functions
+# map function similar to p5.js
+def p5map(n, start1, stop1, start2, stop2): 
+    return ((n - start1) / (stop1 - start1)) * (stop2 - start2) + start2
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 's3cr3t'
@@ -320,6 +324,8 @@ class Game:
         for z in range(self.NUM_LEVELS):
             _map.append([])
 
+            zoom = p5map(z, 0, self.NUM_LEVELS, 0.1, 0.001)
+
             for r in range(self.NUM_ROWS):
                 _map[z].append([])
                 for c in range(self.NUM_COLS):
@@ -329,7 +335,7 @@ class Game:
                         # _map[z][r].append(random.choice(['floor1', 'floor2']))
                         _map[z][r].append('water1')
                     else:
-                        n = opensimplex.noise2(c*0.1, r*0.1)
+                        n = opensimplex.noise2(c*zoom, r*zoom)#c*0.1, r*0.1)
                         newtile = "empty"
                         if n < -0.8 or n > 0.8:
                             newtile = "water2"
