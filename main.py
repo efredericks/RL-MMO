@@ -49,6 +49,7 @@ ENEMY_FLAVOR_PHRASES_RANDOM = [
 ]
 
 MSG_TIME = 5
+PLAYER_EFFECT_TIMEOUT = 10 # how many ticks before AOE is ready
 
 DROP_TYPE_ID = 0
 DROP_NUM_ID = 1
@@ -70,13 +71,25 @@ LOOKUP_STATS = {
 
         # static
         'apple': 'a',
+
+        # effects
+        'fire': 'f',
+        'heal': '+',
     },
     # name: list[(tuple(type, max, chance))] - random() > chance
     'drops': {
         'rat': [('apple', 1, 0.25)],
         'gobbo': [('apple', 3, 0.35)],
         'snek': [('apple', 5, 0.5)],
+    },
+    # effects
+    # key: {attr:impact, timeout: upper}
+    'effects': {
+        'fire': {'hp': -3, 'timer': 10},
+        'heal': {'hp': 1, 'timer': 5},
     }
+
+
 }
 
 # this is probably redundant and can be removed - just check for one of the other globals
@@ -87,6 +100,9 @@ ENTITY_NAMES = [
 
     # static
     'apple',
+
+    # effects
+    'fire', 'heal'
 ]
 
 # utility functions
@@ -125,16 +141,39 @@ class Entity:
             'sprite': self.sprite,
         }
 
+# Effects are special entities
+class Effect(Entity):
+    def __init__(self, _type, pos, entity_id=None, count=None):
+        super().__init__(_type, pos, entity_id)
+
+        # TBD - HANDLE THIS
+        self.timer = LOOKUP_STATS['effects'][_type]['timer']
+
+        # self.entity_id = entity_id
+        # self._type = _type
+        # self.pos = pos
+        # self.count = count
+        # self.sprite = LOOKUP_STATS['sprite'][_type]
+
+    def getTransmissable(self):
+        return {
+            'type': self._type,
+            'pos': self.pos,
+            'count': self.count,
+            'sprite': self.sprite,
+            'timer': self.timer,
+        }
+
 # Entity that can move around the screen
 class MoveableEntity(Entity):
-    def __init__(self, _type, pos, entity_id=None):
+    def __init__(self, _type, pos, entity_id=None, player_class=None):
         super().__init__(_type, pos, entity_id)
 
         # particulars
-        self._type = _type
-        self.pos = pos
+        # self._type = _type
+        # self.pos = pos
         self.last_pos = pos # used to store "prior" position when going up and down stairs
-        self.entity_id = entity_id # only used for logged in players
+        # self.entity_id = entity_id # only used for logged in players
 
         # stats
         self.hp = LOOKUP_STATS['maxHP'][_type]
@@ -144,6 +183,10 @@ class MoveableEntity(Entity):
 
         # interaction - ['msg', ticksRemaining]
         self.chatlog = []
+
+        # class info
+        self.player_class = player_class
+        self.effect_timeout = 0
 
     # update health
     def updateHealth(self, amt):
@@ -165,6 +208,14 @@ class MoveableEntity(Entity):
         if len(self.chatlog) > 0:
             return True
         return False
+
+    # generic update function per entity
+    def update(self):
+        if self.effect_timeout > 0:
+            self.effect_timeout -= 1
+            print(self.effect_timeout)
+
+        self.updateChats()
 
     def updateChats(self):
         if self.hasChat():
@@ -219,12 +270,13 @@ class Game:
         self.players = {}
         self.enemies = self.initEnemies()
         self.items = self.initItems()
+        self.effects = []
 
         # place stairs
         self.placeStairs()
 
     def addPlayer(self, player_id):
-        self.players[player_id] = MoveableEntity("player", self.getRandomPos(), player_id)
+        self.players[player_id] = MoveableEntity("player", self.getRandomPos(), player_id, "mage")
         # self.players[player_id].hp = 2
         # pos = self.getRandomPos()
         # self.players[player_id] = {
@@ -238,6 +290,10 @@ class Game:
 
     # update the game state
     def tick(self):
+        # update effects
+        for e in self.effects:
+            pass
+
         # update the enemies
         for e in self.enemies:
 
@@ -304,7 +360,7 @@ class Game:
 
         # update loop for all players
         for k, p in self.players.items():
-            p.updateChats()
+            p.update()
 
 
     def placeStairs(self):
@@ -380,6 +436,11 @@ class Game:
             pos = self.getRandomPos()
         return Entity(_type, pos, str(uuid.uuid4()))
 
+    def addEffect(self, _type, pos=None):
+        if pos == None:
+            pos = self.getRandomPos()
+        return Effect(_type, pos, str(uuid.uuid4()))
+
     def addEnemy(self, _type, pos):
         return MoveableEntity(_type, pos, str(uuid.uuid4()))
 
@@ -423,6 +484,27 @@ class Game:
     # this should probably be on a cooldown to avoid abuse
     def meditatePlayer(self, pid):
         self.players[pid].active = not self.players[pid].active
+
+    # performs a character-special effect (assuming we add classes...)
+    # default currently is a blast radius or healing effect
+    def playerEffect(self, pid):
+        p = self.players[pid]
+
+        if p.effect_timeout == 0:
+            p.effect_timeout = PLAYER_EFFECT_TIMEOUT
+
+            # spawn fireballs around the player
+            ## TBD - this needs to not use the items array
+            if p.player_class == "mage":
+                for d in ENEMY_DIRS:
+                    new_d = {'level': p.pos['level'], 'r':p.pos['r'] + d['r'], 'c': p.pos['c'] + d['c']}
+
+                    # no fire on self please
+                    if d['c'] != 0 or d['r'] != 0:
+
+                        if self.isWalkable(new_d['c'], new_d['r'], p.pos['level']):
+
+                            self.effects.append(self.addEffect('fire', new_d))
 
     # handle a new chat message
     def playerAddChat(self, pid, msg):
@@ -553,6 +635,12 @@ class Game:
             if v.pos['level'] == level:
                 op[v.entity_id] = v.getTransmissable()
         return json.dumps(op)
+    def getJSONEffects(self, level):
+        op = {}
+        for v in self.effects:
+            if v.pos['level'] == level:
+                op[v.entity_id] = v.getTransmissable()
+        return json.dumps(op)
 
 # TBD - turn into a db of some sort to avoid process issues
 game = Game()
@@ -582,7 +670,15 @@ def test_connect():
         'world': game.getJSONWorld(),
         'enemies': game.getJSONEnemies(level=0),
         'items': game.getJSONItems(level=0),
+        'effects': game.getJSONEffects(level=0),
     })
+
+# handle player effect
+@socketio.on('playereffect')
+def player_effect(msg):
+    global game
+    if msg['playerID'] in game.players:
+        game.playerEffect(msg['playerID'])
 
 # put them to "sleep"
 @socketio.on('meditateplayer')
@@ -651,6 +747,7 @@ def sendTick(msg):
             'players': game.getJSONPlayers(level), 
             'enemies': game.getJSONEnemies(level),
             'items': game.getJSONItems(level),
+            'effects': game.getJSONEffects(level),
         })
 
 @socketio.on('disconnect')

@@ -23,7 +23,7 @@
         };
 
         let canvas, ctx;
-        let gameMap, gamePlayers, gameEnemies, gameItems;
+        let gameMap, gamePlayers, gameEnemies, gameItems, gameEffects;
         let myID;
         let players;
         let NUM_ROWS, NUM_COLS;
@@ -64,6 +64,10 @@
 
             // items
             apple: { sprite: 'a', color: '#00ff00' },
+
+            // effects
+            fire: { sprite: 'f', color: '#ff0000' },
+            heal: { sprite: '+', color: '#00ff00' },
 
             // chat
             enemy_chat: { color: '#666666' },
@@ -240,6 +244,19 @@
                     }
                 }
 
+                // effects
+                if (gameEffects !== undefined) {
+                    for (const [effect_id, effect] of Object.entries(gameEffects)) {
+                        if (effect.pos.c >= startx && effect.pos.c < endx && effect.pos.r >= starty && effect.pos.r < endy) {
+                            let _x = (effect.pos.c - startx) * tileSize;
+                            let _y = (effect.pos.r - starty) * tileSize + tileSize;
+
+                            ctx.fillStyle = SPRITESHEET[effect.type].color;
+                            ctx.fillText(SPRITESHEET[effect.type].sprite, _x, _y);
+                        }
+                    }
+                }
+
                 // enemies
                 ctx.fillStyle = "#ffff00";
                 for (const [enemy_id, enemy] of Object.entries(gameEnemies)) {
@@ -340,8 +357,12 @@
             }
 
         }
+        // all these generic calls could probably be a single function...
         movePlayer = (socket, pid, c, r) => {
             socket.emit('moveplayer', { playerID: pid, c: c, r: r });
+        }
+        playerEffect = (socket, pid) => {
+            socket.emit('playereffect', { playerID: pid });
         }
         meditatePlayer = (socket, pid) => {
             socket.emit('meditateplayer', { playerID: pid });
@@ -449,11 +470,20 @@
                             meditatePlayer(socket, myID);
                             break;
 
+                        // apply character effect
+                        // healing radius
+                        // blast radius
+                        // ?
+                        case 'e':
+                            playerEffect(socket, myID);
+                            break;
+
                         // use item - in this case all we have
                         // are apples
                         case '1':
                             useItem(socket, myID);
                             break;
+
 
                         // pickup the top item you see
                         // TBD - maybe pick up them all, we'll see how it shakes out
@@ -513,6 +543,7 @@
                 gamePlayers = JSON.parse(msg.players);
                 gameEnemies = JSON.parse(msg.enemies);
                 gameItems = JSON.parse(msg.items);
+                gameEffects = JSON.parse(msg.effects);
 
                 // console.log(gamePlayers)
                 drawMap();
