@@ -46,10 +46,19 @@
             floor1: { sprite: '.', color: '#333' },
             floor2: { sprite: '.', color: '#666' },
             water1: { sprite: '~', color: '#008080' },
+            // water2: { sprite: '☵', color: '#0011ee' },
             water2: { sprite: '~', color: '#0011ee' },
             empty: { sprite: ' ', color: '#000' },
             stairsDown: { sprite: '>', color: '#00ffff' },
             stairsUp: { sprite: '<', color: '#00ffff' },
+            // tree1: { sprite: '🌲', color: '#003300' },
+            // tree2: { sprite: '🌳', color: '#003300' },
+            tree1: { sprite: '🛆', color: '#003300' },
+            tree2: { sprite: '🛆', color: '#006600' },
+            // tree: { sprite: '🛆', color: '#003300' },
+            // shade1: { sprite: '░', color: '#eee' },
+            // shade2: { sprite: '▒', color: '#666' },
+            // shade3: { sprite: '▓', color: '#333' },
 
             // players
             player: { 'sprite': '@', 'color': '#ff00ffff' },
@@ -66,8 +75,8 @@
             apple: { sprite: 'a', color: '#00ff00' },
 
             // effects
-            fire: { sprite: 'f', color: '#ff0000' },
-            heal: { sprite: '+', color: '#00ff00' },
+            fire: { sprite: 'f', color: '#ff0000', max_time: 10 },
+            heal: { sprite: '+', color: '#00ff00', max_time: 5 },
 
             // chat
             enemy_chat: { color: '#666666' },
@@ -251,8 +260,11 @@
                             let _x = (effect.pos.c - startx) * tileSize;
                             let _y = (effect.pos.r - starty) * tileSize + tileSize;
 
+                            ctx.globalAlpha = p5map(effect.timer, SPRITESHEET[effect.type].max_time, 1, 1.0, 0.0);
+
                             ctx.fillStyle = SPRITESHEET[effect.type].color;
                             ctx.fillText(SPRITESHEET[effect.type].sprite, _x, _y);
+                            ctx.globalAlpha = 1.0
                         }
                     }
                 }

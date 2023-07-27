@@ -15,12 +15,14 @@ DONT_PLACE = [
 #   "<", ">", 
     'stairsDown', 'stairsUp',
     'water1',
+    'tree1','tree2',
 ]
 
 WALKABLE = [
 #   ".", " ", "<", ">", 
     'floor1', 'floor2', 'water1', 'empty',
     'stairsDown', 'stairsUp',
+    'tree1','tree2',
 ]
 
 ENEMY_DIRS = [
@@ -48,6 +50,8 @@ ENEMY_FLAVOR_PHRASES_RANDOM = [
     "HI",
 ]
 
+DRUNK_ITERATIONS = 25#50
+
 MSG_TIME = 5
 PLAYER_EFFECT_TIMEOUT = 10 # how many ticks before AOE is ready
 
@@ -57,9 +61,9 @@ DROP_CHANCE_ID = 2
 LOOKUP_STATS = {
     'maxHP': {
         'player': 10,
-        'gobbo': 2,
-        'snek': 2,
-        'rat': 1,
+        'gobbo': 5,
+        'snek': 4,
+        'rat': 3,
     },
     # probably removeable as rendering is offloaded to the client now
     'sprite': {
@@ -187,15 +191,18 @@ class MoveableEntity(Entity):
         # class info
         self.player_class = player_class
         self.effect_timeout = 0
+        self.atk = 1
 
     # update health
     def updateHealth(self, amt):
+        # print(amt,self.hp)
         self.hp += amt
 
-        # constrain
+        # constrain - still valid
         if self.hp > self.maxHP: 
             self.hp = self.maxHP
-            return False
+            return True
+        # dead - return invalid
         if self.hp <= 0:
             return False
         return True
@@ -211,6 +218,7 @@ class MoveableEntity(Entity):
 
     # generic update function per entity
     def update(self):
+        # next time entity can cast effect
         if self.effect_timeout > 0:
             self.effect_timeout -= 1
             print(self.effect_timeout)
@@ -290,9 +298,39 @@ class Game:
 
     # update the game state
     def tick(self):
+        # update where players are by level
+        players_by_level = []
+        for z in range(self.NUM_LEVELS):
+            players_by_level.append([])
+
+        for pk, pv in self.players.items():
+            players_by_level[pv.pos['level']].append(pv.entity_id)
+
+
         # update effects
-        for e in self.effects:
-            pass
+        effect_ids = []
+        for i in range(len(self.effects)):
+            e = self.effects[i]
+            if e.timer is not None and e.timer > 0:
+                e.timer -= 1
+
+            # delete this effect afterwards
+            if e.timer <= 0:
+                effect_ids.append(i)
+
+            else: # impact enemies/players
+                for _ in self.enemies:
+                    attackVal = self.hasEnemy(None, e.pos['c'], e.pos['r'], e.pos['level'], LOOKUP_STATS['effects'][e._type]['hp'])
+                    # if attackVal:
+                        # send to client for sound
+                        # emit('serverResponse', {'resp': 'playerHitMonster'})
+
+        # iterate backwards over list
+        if len(effect_ids) > 0:
+            for i in range(len(effect_ids)-1, -1, -1):
+                del self.effects[effect_ids[i]]
+
+
 
         # update the enemies
         for e in self.enemies:
@@ -334,7 +372,7 @@ class Game:
 
                     if next_c < player.pos['c']: next_c += 1
                     if next_c > player.pos['c']: next_c -= 1
-                    if self.isWalkable(next_c, next_r, player.pos['level']):
+                    if self.isWalkable(next_c, next_r, player.pos['level']) and not (player.pos['c'] == next_c and player.pos['r'] == next_r):
                         e.pos['r'] = next_r
                         e.pos['c'] = next_c
 
@@ -347,7 +385,7 @@ class Game:
                     e.pos['r'] = new_pos['r']
                     e.pos['c'] = new_pos['c']
 
-            e.updateChats()
+            e.update()
         # repopulate
         # TBD - this needs to be on a per-level basis
         # need to filter based on level
@@ -374,39 +412,73 @@ class Game:
             stair_pos = self.getRandomPos(z)
             self.gameMap[z][stair_pos['r']][stair_pos['c']] = "stairsUp"
 
+    def simplexMap(self, z):
+        _map = []
+        zoom = p5map(z, 0, self.NUM_LEVELS, 0.1, 0.001)
+        for r in range(self.NUM_ROWS):
+            _map.append([])
+            for c in range(self.NUM_COLS):
+                if r == 0 or c == 0 or r == self.NUM_ROWS-1 or c == self.NUM_COLS-1:
+                    _map[r].append("water2")
+                elif r == 1 or c == 1 or r == self.NUM_ROWS-2 or c == self.NUM_COLS-2:
+                    # _map[z][r].append(random.choice(['floor1', 'floor2']))
+                    _map[r].append('water1')
+                else:
+                    n = opensimplex.noise2(c*zoom, r*zoom)#c*0.1, r*0.1)
+                    newtile = "empty"
+                    if n < -0.8 or n > 0.8:
+                        newtile = "water2"
+                    elif n < -0.6 or n > 0.6:
+                        newtile = "water1"
+                    elif n < -0.4 or n > 0.4:
+                        newtile = "floor2"
+                    elif n < -0.2 or n > 0.2:
+                        newtile = "floor1"
+                    else:#if n < -0.2 or n > 0.2:
+                        newtile = random.choice(['tree1','tree2'])#"tree"
+
+                    _map[r].append(newtile)
+                    # random placement
+                    # if random.random() > 0.9:
+                    #     _map[z][r].append("wall2")
+                    # else:
+                    #     _map[z][r].append("empty")
+        return _map
+
+    def drunkardsMap(self, z):
+        _map = [['wall2'] * self.NUM_COLS for _ in range(self.NUM_ROWS)]
+
+        center_c = self.NUM_COLS//2
+        center_r = self.NUM_ROWS//2
+
+        for _ in range(DRUNK_ITERATIONS):
+            curr_c = center_c
+            curr_r = center_r
+            DRUNK_LIFETIME = self.NUM_COLS * self.NUM_ROWS
+            # DRUNK_LIFETIME = max(self.NUM_COLS, self.NUM_ROWS)
+
+            for i in range(DRUNK_LIFETIME):
+                _map[curr_r][curr_c] = random.choice(['floor1', 'floor1', 'floor2'])
+
+                new_dir = random.choice(ENEMY_DIRS)
+                curr_r += new_dir['r']
+                curr_c += new_dir['c']
+
+                # out of bounds
+                if curr_c == 0 or curr_r == 1 or curr_c == self.NUM_COLS-1 or curr_r == self.NUM_ROWS-1:
+                    break
+
+        return _map
+
     def initMap(self):
         _map = []
 
         for z in range(self.NUM_LEVELS):
-            _map.append([])
+            if z == 0:
+                _map.append(self.drunkardsMap(z))
+            else:
+                _map.append(self.simplexMap(z))
 
-            zoom = p5map(z, 0, self.NUM_LEVELS, 0.1, 0.001)
-
-            for r in range(self.NUM_ROWS):
-                _map[z].append([])
-                for c in range(self.NUM_COLS):
-                    if r == 0 or c == 0 or r == self.NUM_ROWS-1 or c == self.NUM_COLS-1:
-                        _map[z][r].append("water2")
-                    elif r == 1 or c == 1 or r == self.NUM_ROWS-2 or c == self.NUM_COLS-2:
-                        # _map[z][r].append(random.choice(['floor1', 'floor2']))
-                        _map[z][r].append('water1')
-                    else:
-                        n = opensimplex.noise2(c*zoom, r*zoom)#c*0.1, r*0.1)
-                        newtile = "empty"
-                        if n < -0.8 or n > 0.8:
-                            newtile = "water2"
-                        elif n < -0.6 or n > 0.6:
-                            newtile = "water1"
-                        elif n < -0.4 or n > 0.4:
-                            newtile = "floor2"
-                        elif n < -0.2 or n > 0.2:
-                            newtile = "floor1"
-                        _map[z][r].append(newtile)
-                        # random placement
-                        # if random.random() > 0.9:
-                        #     _map[z][r].append("wall2")
-                        # else:
-                        #     _map[z][r].append("empty")
         return _map
 
     def initEnemies(self):
@@ -575,7 +647,7 @@ class Game:
             del self.items[idx]
         return valid
 
-    def hasEnemy(self, pid, c, r, l):
+    def hasEnemy(self, pid, c, r, l, atk=1):
         idx = -1
         for i in range(len(self.enemies)):
             e = self.enemies[i]
@@ -584,11 +656,15 @@ class Game:
 
         if idx != -1:
             epos = self.enemies[idx].pos
-            drop = random.choice(LOOKUP_STATS['drops'][self.enemies[idx]._type])
-            if random.random() > drop[DROP_CHANCE_ID]:
-                self.items.append(self.addItem(drop[DROP_TYPE_ID], epos))
 
-            del self.enemies[idx]
+            # update health, drop and delete if dead
+            retval = self.enemies[idx].updateHealth(atk)
+            if not retval:
+                drop = random.choice(LOOKUP_STATS['drops'][self.enemies[idx]._type])
+                if random.random() > drop[DROP_CHANCE_ID]:
+                    self.items.append(self.addItem(drop[DROP_TYPE_ID], epos))
+
+                del self.enemies[idx]
             return True
         return False
 
@@ -600,7 +676,7 @@ class Game:
         # wake up on move attempt
         self.players[pid].active = True 
 
-        attackVal = self.hasEnemy(pid, next_c, next_r, self.players[pid].pos['level'])
+        attackVal = self.hasEnemy(pid, next_c, next_r, self.players[pid].pos['level'], -self.players[pid].atk)
         if attackVal:
             # no movement, attack handled elsewhere
             # but send to client for sound
