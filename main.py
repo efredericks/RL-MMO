@@ -221,7 +221,7 @@ class MoveableEntity(Entity):
         # next time entity can cast effect
         if self.effect_timeout > 0:
             self.effect_timeout -= 1
-            print(self.effect_timeout)
+            # print(self.effect_timeout)
 
         self.updateChats()
 
@@ -241,6 +241,7 @@ class MoveableEntity(Entity):
             'inventory': self.inventory,
             'sprite': self.sprite,
             'chatlog' : self.chatlog,
+            'effect_timeout': self.effect_timeout,
         }
 
         return retval
@@ -458,7 +459,7 @@ class Game:
             # DRUNK_LIFETIME = max(self.NUM_COLS, self.NUM_ROWS)
 
             for i in range(DRUNK_LIFETIME):
-                _map[curr_r][curr_c] = random.choice(['floor1', 'floor1', 'floor2'])
+                _map[curr_r][curr_c] = random.choice(['empty', 'empty', 'floor1', 'floor1', 'floor2'])
 
                 new_dir = random.choice(ENEMY_DIRS)
                 curr_r += new_dir['r']
@@ -475,9 +476,9 @@ class Game:
 
         for z in range(self.NUM_LEVELS):
             if z == 0:
-                _map.append(self.drunkardsMap(z))
-            else:
                 _map.append(self.simplexMap(z))
+            else:
+                _map.append(self.drunkardsMap(z))
 
         return _map
 

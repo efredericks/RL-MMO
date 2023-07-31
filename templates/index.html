@@ -8,103 +8,14 @@
     <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js" -->
     <!-- integrity="sha512-q/dWJ3kcmjBLU4Qc47E4A9kTB4m3wuTY7vkFJDTZKjTs8jhyGQnaUrxa0Ytd0ssMZhbNua9hE+E7Qv1j+DyZwA==" -->
     <!-- crossorigin="anonymous"></script> -->
-    <script src="{{ url_for('static', filename='socket.io_4.0.1_socket.io.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/socket.io_4.0.1_socket.io.js') }}"></script>
+
+    <!-- includes -->
+    <script src="{{ url_for('static', filename='js/globals.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+
     <script type="text/javascript" charset="utf-8">
-        let KEYS = {
-            'up': ['KeyK', 'ArrowUp', 'Numpad8'],
-            'down': ['KeyJ', 'ArrowDown', 'Numpad2'],
-            'left': ['KeyH', 'ArrowLeft', 'Numpad4'],
-            'right': ['KeyL', 'ArrowRight', 'Numpad6'],
-
-            'upleft': ['KeyY', 'Numpad7'],
-            'upright': ['KeyU', 'Numpad9'],
-            'downleft': ['KeyB', 'Numpad1'],
-            'downright': ['KeyN', 'Numpad3'],
-        };
-
-        let canvas, ctx;
-        let gameMap, gamePlayers, gameEnemies, gameItems, gameEffects;
-        let myID;
-        let players;
-        let NUM_ROWS, NUM_COLS;
-        let tileSize = 24;
-        let halfTile = tileSize / 2;
-
-        let uiX, uiY;
-        let sounds;
-        let audioPlaying = false;
-
-        let MSG_TIME = 5; // duplicate from main.py
-
-        let TEXT_BG = "rgb(220,220,220)";
-
-        // spritesheet
-        let SPRITESHEET = {
-            // env
-            wall1: { sprite: '#', color: '#ccc' },
-            wall2: { sprite: '#', color: '#999' },
-            floor1: { sprite: '.', color: '#333' },
-            floor2: { sprite: '.', color: '#666' },
-            water1: { sprite: '~', color: '#008080' },
-            // water2: { sprite: '☵', color: '#0011ee' },
-            water2: { sprite: '~', color: '#0011ee' },
-            empty: { sprite: ' ', color: '#000' },
-            stairsDown: { sprite: '>', color: '#00ffff' },
-            stairsUp: { sprite: '<', color: '#00ffff' },
-            // tree1: { sprite: '🌲', color: '#003300' },
-            // tree2: { sprite: '🌳', color: '#003300' },
-            tree1: { sprite: '🛆', color: '#003300' },
-            tree2: { sprite: '🛆', color: '#006600' },
-            // tree: { sprite: '🛆', color: '#003300' },
-            // shade1: { sprite: '░', color: '#eee' },
-            // shade2: { sprite: '▒', color: '#666' },
-            // shade3: { sprite: '▓', color: '#333' },
-
-            // players
-            player: { 'sprite': '@', 'color': '#ff00ffff' },
-            player_meditate: { 'sprite': '@', 'color': '#ff00ffaa' },
-            other_player: { 'sprite': '@', 'color': '#00ff00ff' },
-            other_player_meditate: { 'sprite': '@', 'color': '#00ff00aa' },
-
-            // monsters
-            rat: { sprite: 'r', color: '#ffff00' },
-            snek: { sprite: 's', color: '#ffff00' },
-            gobbo: { sprite: 'g', color: '#ffff00' },
-
-            // items
-            apple: { sprite: 'a', color: '#00ff00' },
-
-            // effects
-            fire: { sprite: 'f', color: '#ff0000', max_time: 10 },
-            heal: { sprite: '+', color: '#00ff00', max_time: 5 },
-
-            // chat
-            enemy_chat: { color: '#666666' },
-            player_chat: { color: '#aa00aa' },
-            other_player_chat: { color: '#00aa00' },
-        };
-
-        // pick a random index for each sound on [1,len]
-        let soundMaps = {
-            monHit: 2,
-            playerHit: 15,
-            pickup: 4,
-            stairs: 7,
-            spawn: 1,
-        };
-
         // utility functions
-        // random integer [min, max) -- https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random
-        getRandomInt = (min, max) => {
-            min = Math.ceil(min);
-            max = Math.floor(max);
-            return Math.floor(Math.random() * (max - min) + min);
-        }
-
-        // map function similar to p5.js
-        p5map = (n, start1, stop1, start2, stop2) => {
-            return ((n - start1) / (stop1 - start1)) * (stop2 - start2) + start2
-        }
 
         // c/o https://nluqo.github.io/broughlike-tutorial/stage7.html
         initSounds = () => {
@@ -168,17 +79,21 @@
             alert("draw inventory")
         }
 
-        drawChat = (x, y, chat, timer, color) => {
-            // bubble
-            let tw = ctx.measureText(chat).width;
+        drawChat = (x, y, chat, timer, color, isPlayer = false) => {
             ctx.globalAlpha = p5map(timer, MSG_TIME, 1, 1.0, 0.0);
+            if (isPlayer) {
+                // bubble
+                let tw = ctx.measureText(chat).width;
+                drawBubble(ctx, x - halfTile, y - tileSize * 2, tw, tileSize + halfTile, 10);
+                // text
+                ctx.fillStyle = color;
+                ctx.fillText(chat, x - halfTile, y - tileSize - halfTile);
+            } else {
+                // text
+                ctx.fillStyle = color;
+                ctx.fillText(chat, x - halfTile, y - tileSize);
+            }
 
-            ctx.fillStyle = TEXT_BG;
-            ctx.fillRect(x - halfTile, y - tileSize * 2, tw, tileSize + halfTile);
-
-            // text
-            ctx.fillStyle = color;
-            ctx.fillText(chat, x - halfTile, y - tileSize);
             ctx.globalAlpha = 1.0;
         }
 
@@ -329,6 +244,11 @@
                             uiY += tileSize;
                             ctx.fillText(`Level: ${_player.pos.level + 1}`, uiX, uiY);
 
+                            if (_player.effect_timeout == 0) {
+                                uiY += tileSize;
+                                ctx.fillText(`AoE ready!`, uiX, uiY);
+                            }
+
                             // debug
                             uiY += tileSize;
                             ctx.fillText(`C:${_player.pos.c},R:${_player.pos.r}`, uiX, uiY);
@@ -361,7 +281,7 @@
                             // ctx.fillText(_player.chatlog[0], _x - halfTile, _y - tileSize);
                             // ctx.globalAlpha = 1.0;
 
-                            drawChat(_x, _y, _player.chatlog[0], _player.chatlog[1], _player_chat_col);
+                            drawChat(_x, _y, _player.chatlog[0], _player.chatlog[1], _player_chat_col, isPlayer = true);
                         }
                     }
                 }
