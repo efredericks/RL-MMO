@@ -192,6 +192,10 @@ class MoveableEntity(Entity):
         self.player_class = player_class
         self.effect_timeout = 0
         self.atk = 1
+        self.ac = 1
+
+        # targeting info
+        self.target = None
 
     # update health
     def updateHealth(self, amt):
@@ -206,6 +210,16 @@ class MoveableEntity(Entity):
         if self.hp <= 0:
             return False
         return True
+
+    def setTarget(self, other_id):
+        self.target = other_id
+
+    # returns ID of target
+    def getTarget(self):
+        return self.target
+
+    def removeTarget(self):
+        self.target = None
 
     # chat related - only 1 can be active per entity
     def addChat(self, msg):
@@ -300,12 +314,12 @@ class Game:
     # update the game state
     def tick(self):
         # update where players are by level
-        players_by_level = []
+        players_by_level = {}
         for z in range(self.NUM_LEVELS):
-            players_by_level.append([])
+            players_by_level[z] = {}
 
         for pk, pv in self.players.items():
-            players_by_level[pv.pos['level']].append(pv.entity_id)
+            players_by_level[pv.pos['level']][pv.entity_id] = pv
 
 
         # update effects
@@ -332,59 +346,125 @@ class Game:
                 del self.effects[effect_ids[i]]
 
 
+        # players_by_level = {}
+        # for pk,pv in self.players.items():
+        #     players_by_level[pv.pos['level']][pv.entity_id] = pv
 
         # update the enemies
         for e in self.enemies:
 
-            # random follow
-            if random.random() > 0.15:
-                # get closest player
-                min_dist, min_id = 999, "none"
+            # TBD (follower):
+            # 1 if no target, set target
+            # 2 if target, follow
+            # 3 if target out of range, forget
+            # add a check to see what type of e this is as well
+            # make follow dist a function of the lookup table!!
 
-                # give the enemy some flavor
-                if random.random() > 0.95 and not e.hasChat():
-                    e.addChat(random.choice(ENEMY_FLAVOR_PHRASES_RANDOM))
+            tgt = e.getTarget()
+            if tgt is not None and tgt in self.players: # we have a target
+                # same level test
+                if self.players[tgt].pos['level'] != e.pos['level']:
+                    e.removeTarget()
+                else:
+                    # if in range, follow
+                    player = self.players[tgt]
+                    d = abs(e.pos['c'] - player.pos['c']) + abs(e.pos['r'] - player.pos['r'])
+                    if d > self.CAM_NUM_COLS: # forget!
+                        e.removeTarget()
+                    else: # follow!
+                        next_r = e.pos['r']
+                        next_c = e.pos['c']
 
-                # filter players on current level
-                # players_on_level = filter(lambda l: l.pos['level'] == e.pos['level'], self.players)
-                # print(list(players_on_level))
-                players_on_level = {}
-                for pk,pv in self.players.items():
-                    if pv.pos['level'] == e.pos['level']:
-                        players_on_level[pv.entity_id] = pv
+                        if next_r < player.pos['r']: next_r += 1
+                        if next_r > player.pos['r']: next_r -= 1
+                        if self.isWalkable(next_c, next_r, player.pos['level']):
+                            e.pos['r'] = next_r
+                            e.pos['c'] = next_c
 
-                for pid, player in players_on_level.items():#self.players.items():
-                    if player.active:
-                        d = abs(e.pos['c'] - player.pos['c']) + abs(e.pos['r'] - player.pos['r'])
+                        if next_c < player.pos['c']: next_c += 1
+                        if next_c > player.pos['c']: next_c -= 1
+                        if self.isWalkable(next_c, next_r, player.pos['level']) and not (player.pos['c'] == next_c and player.pos['r'] == next_r):
+                            e.pos['r'] = next_r
+                            e.pos['c'] = next_c
+            else: # no target
+                min_dist, min_id = self.CAM_NUM_COLS, "none"
+
+                for pk, pv in players_by_level[e.pos['level']].items():
+                    if pv.active:
+                        d = abs(e.pos['c'] - pv.pos['c']) + abs(e.pos['r'] - pv.pos['r'])
                         if d < min_dist:
                             min_dist = d
-                            min_id = pid
+                            min_id = pv.entity_id
 
+                # we found a target
                 if min_id in self.players:
-                    player = self.players[min_id]
-                    next_r = e.pos['r']
-                    next_c = e.pos['c']
+                    e.setTarget(min_id)
 
-                    if next_r < player.pos['r']: next_r += 1
-                    if next_r > player.pos['r']: next_r -= 1
-                    if self.isWalkable(next_c, next_r, player.pos['level']):
-                        e.pos['r'] = next_r
-                        e.pos['c'] = next_c
+                    # add random flavor text if following
+                    if random.random() > 0.5 and not e.hasChat():
+                        e.addChat(random.choice(ENEMY_FLAVOR_PHRASES_RANDOM))
+                else:
+                    new_dir = random.choice(ENEMY_DIRS)
+                    new_pos = {'r': e.pos['r'] + new_dir['r'], 'c': e.pos['c'] + new_dir['c']}
 
-                    if next_c < player.pos['c']: next_c += 1
-                    if next_c > player.pos['c']: next_c -= 1
-                    if self.isWalkable(next_c, next_r, player.pos['level']) and not (player.pos['c'] == next_c and player.pos['r'] == next_r):
-                        e.pos['r'] = next_r
-                        e.pos['c'] = next_c
+                    if self.isWalkable(new_pos['c'], new_pos['r'], e.pos['level']):
+                        e.pos['r'] = new_pos['r']
+                        e.pos['c'] = new_pos['c']
 
-            # random movement
-            elif random.random() > 0.5:
-                new_dir = random.choice(ENEMY_DIRS)
-                new_pos = {'r': e.pos['r'] + new_dir['r'], 'c': e.pos['c'] + new_dir['c']}
 
-                if self.isWalkable(new_pos['c'], new_pos['r'], e.pos['level']):
-                    e.pos['r'] = new_pos['r']
-                    e.pos['c'] = new_pos['c']
+
+
+            # random follow
+            # if random.random() > 0.0:#0.15:
+            #     # get closest player
+            #     # min_dist, min_id = 999, "none"
+            #     min_dist, min_id = self.CAM_NUM_COLS, "none"
+
+            #     # give the enemy some flavor
+            #     if random.random() > 0.95 and not e.hasChat():
+            #         e.addChat(random.choice(ENEMY_FLAVOR_PHRASES_RANDOM))
+
+            #     # filter players on current level
+            #     # players_on_level = filter(lambda l: l.pos['level'] == e.pos['level'], self.players)
+            #     # print(list(players_on_level))
+            #     players_on_level = {}
+            #     for pk,pv in self.players.items():
+            #         if pv.pos['level'] == e.pos['level']:
+            #             players_on_level[pv.entity_id] = pv
+
+            #     for pid, player in players_on_level.items():#self.players.items():
+            #         if player.active:
+            #             d = abs(e.pos['c'] - player.pos['c']) + abs(e.pos['r'] - player.pos['r'])
+            #             print(d)
+            #             if d < min_dist:
+            #                 min_dist = d
+            #                 min_id = pid
+
+            #     if min_id in self.players:
+            #         player = self.players[min_id]
+            #         next_r = e.pos['r']
+            #         next_c = e.pos['c']
+
+            #         if next_r < player.pos['r']: next_r += 1
+            #         if next_r > player.pos['r']: next_r -= 1
+            #         if self.isWalkable(next_c, next_r, player.pos['level']):
+            #             e.pos['r'] = next_r
+            #             e.pos['c'] = next_c
+
+            #         if next_c < player.pos['c']: next_c += 1
+            #         if next_c > player.pos['c']: next_c -= 1
+            #         if self.isWalkable(next_c, next_r, player.pos['level']) and not (player.pos['c'] == next_c and player.pos['r'] == next_r):
+            #             e.pos['r'] = next_r
+            #             e.pos['c'] = next_c
+
+            # # random movement
+            # elif random.random() > 0.5:
+            #     new_dir = random.choice(ENEMY_DIRS)
+            #     new_pos = {'r': e.pos['r'] + new_dir['r'], 'c': e.pos['c'] + new_dir['c']}
+
+            #     if self.isWalkable(new_pos['c'], new_pos['r'], e.pos['level']):
+            #         e.pos['r'] = new_pos['r']
+            #         e.pos['c'] = new_pos['c']
 
             e.update()
         # repopulate
