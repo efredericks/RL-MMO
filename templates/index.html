@@ -79,6 +79,18 @@
             alert("draw inventory")
         }
 
+        initializeAnimationProperties = () => {
+            // initialize animation properties
+            for (let [player_id, player] of Object.entries(gamePlayers)) {
+                player.offsetX = 0;
+                player.offsetY = 0;
+            }
+            for (let [enemy_id, enemy] of Object.entries(gameEnemies)) {
+                enemy.offsetX = 0;
+                enemy.offsetY = 0;
+            }
+        }
+
         drawChat = (x, y, chat, timer, color, isPlayer = false) => {
             ctx.globalAlpha = p5map(timer, MSG_TIME, 1, 1.0, 0.0);
             if (isPlayer) {
@@ -189,8 +201,11 @@
                 for (const [enemy_id, enemy] of Object.entries(gameEnemies)) {
                     if (enemy.pos.c >= startx && enemy.pos.c < endx && enemy.pos.r >= starty && enemy.pos.r < endy) {
 
-                        let _x = (enemy.pos.c - startx) * tileSize;
-                        let _y = (enemy.pos.r - starty) * tileSize + tileSize;
+                        let _x = enemy.offsetX + (enemy.pos.c - startx) * tileSize;
+                        let _y = enemy.offsetY + (enemy.pos.r - starty) * tileSize + tileSize;
+
+                        enemy.offsetX -= Math.sign(enemy.offsetX) * (1/8);
+                        enemy.offsetY -= Math.sign(enemy.offsetY) * (1/8);
 
                         // ctx.clearRect(enemy.pos.c * tileSize, enemy.pos.r * tileSize, tileSize, tileSize);
                         // ctx.fillText("E", enemy.pos.c * tileSize, enemy.pos.r * tileSize + tileSize);
@@ -214,8 +229,11 @@
                     // TBD: filter entities beforehand and simply don't draw them
                     if (_player.pos.c >= startx && _player.pos.c < endx && _player.pos.r >= starty && _player.pos.r < endy) {
 
-                        let _x = (_player.pos.c - startx) * tileSize;
-                        let _y = (_player.pos.r - starty) * tileSize + tileSize;
+                        let _x = _player.offsetX + (_player.pos.c - startx) * tileSize;
+                        let _y = _player.offsetY + (_player.pos.r - starty) * tileSize + tileSize;
+
+                        player.offsetX -= Math.sign(player.offsetX) * (1/8);
+                        player.offsetY -= Math.sign(player.offsetY) * (1/8);
 
                         // ctx.clearRect(_x, _y - tileSize, tileSize, tileSize);
                         // ctx.clearRect(_player.pos.c * tileSize, _player.pos.r * tileSize, tileSize, tileSize);
@@ -291,6 +309,8 @@
         }
         // all these generic calls could probably be a single function...
         movePlayer = (socket, pid, c, r) => {
+            gamePlayers[pid].offsetX = c * halfTile;
+            gamePlayers[pid].offsetY = r * halfTile;
             socket.emit('moveplayer', { playerID: pid, c: c, r: r });
         }
         playerEffect = (socket, pid) => {
@@ -467,6 +487,8 @@
                 console.log(gameEnemies)
                 console.log(gameMap)
                 console.log(gameItems)
+
+                initializeAnimationProperties();
                 drawMap();
             });
 
@@ -478,6 +500,7 @@
                 gameEffects = JSON.parse(msg.effects);
 
                 // console.log(gamePlayers)
+                initializeAnimationProperties();
                 drawMap();
             });
 

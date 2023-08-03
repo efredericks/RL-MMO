@@ -362,8 +362,8 @@ class Game:
 
             tgt = e.getTarget()
             if tgt is not None and tgt in self.players: # we have a target
-                # same level test
-                if self.players[tgt].pos['level'] != e.pos['level']:
+                # same level test / meditating test
+                if self.players[tgt].pos['level'] != e.pos['level'] or not self.players[tgt].active:
                     e.removeTarget()
                 else:
                     # if in range, follow
