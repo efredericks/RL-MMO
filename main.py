@@ -10,6 +10,8 @@ import json
 import random
 import uuid
 
+from copy import deepcopy
+
 # lookup table for special tiles that are walkable but can't have things placed on them
 DONT_PLACE = [
 #   "<", ">", 
@@ -193,6 +195,7 @@ class MoveableEntity(Entity):
         self.effect_timeout = 0
         self.atk = 1
         self.ac = 1
+        
 
         # targeting info
         self.target = None
@@ -265,8 +268,8 @@ class Game:
     def __init__(self):
 
 
-        self.NUM_ROWS = 50
-        self.NUM_COLS = 50
+        self.NUM_ROWS = 100#50
+        self.NUM_COLS = 100#50
         # self.NUM_ROWS = 1000
         # self.NUM_COLS = 1000
 
@@ -526,8 +529,173 @@ class Game:
                     #     _map[z][r].append("empty")
         return _map
 
-    def drunkardsMap(self, z):
+    # https://abitawake.com/news/articles/procedural-generation-with-godot-creating-caves-with-cellular-automata
+    ## cellular automata functions
+    def fillWalls(self):
+        return [['wall1'] * self.NUM_COLS for _ in range(self.NUM_ROWS)]
+
+    def checkNearby(self, x, y, _map):
+        count = 0
+        if _map[y-1][x] == 'empty': count += 1
+        if _map[y+1][x] == 'empty': count += 1
+        if _map[y][x-1] == 'empty': count += 1
+        if _map[y][x+1] == 'empty': count += 1
+        if _map[y-1][x+1] == 'empty': count += 1
+        if _map[y-1][x+1] == 'empty': count += 1
+        if _map[y+1][x-1] == 'empty': count += 1
+        if _map[y+1][x-1] == 'empty': count += 1
+        return count
+
+    def digCaves(self, _map, iterations, neighbors):
+        for _ in range(iterations):
+            x = random.randint(1, self.NUM_COLS-2)
+            y = random.randint(1, self.NUM_ROWS-2)
+
+            if self.checkNearby(x, y, _map) > neighbors:
+                _map[y][x] = 'wall2'
+            elif self.checkNearby(x, y, _map) < neighbors:
+                _map[y][x] = 'empty'
+
+    def randomGround(self, _map):
+        for y in range(1, self.NUM_COLS-2):
+            for x in range(1, self.NUM_ROWS-2):
+                if random.random() > 0.4:
+                    _map[y][x] = 'empty'
+
+
+    def floodFill(self, _map, caves, x, y):
+        min_cave_size = 80
+        cave = []
+        to_fill = [{'x': x, 'y': y}]
+
+        while to_fill:
+            tile = to_fill.pop()
+
+            if not tile in cave:
+                cave.append(tile)
+                _map[tile['y']][tile['x']] = 'wall2'
+
+                north = {'x': tile['x'], 'y': tile['y']-1}
+                south = {'x': tile['x'], 'y': tile['y']+1}
+                east = {'x': tile['x']+1, 'y': tile['y']}
+                west = {'x': tile['x']-1, 'y': tile['y']}
+
+                for dir in [north, south, east, west]:
+                    if _map[dir['y']][dir['x']] == 'empty':
+                        if not dir in to_fill and not dir in cave:
+                            to_fill.append(dir)
+
+        if len(cave) >= min_cave_size:
+            caves.append(cave)
+
+    def getCaves(self, _map):
+        caves = []
+
+        for y in range(self.NUM_ROWS):
+            for x in range(self.NUM_COLS):
+                if _map[y][x] == 'empty':
+                    self.floodFill(_map, caves, x, y)
+
+        for cave in caves:
+            for c in cave:
+                _map[c['y']][c['x']] = 'empty'
+
+        return caves
+        
+    def createTunnel(self, _map, point1, point2, cave):
+        max_steps = 500
+        steps = 0
+        drunk_x = point2['x']
+        drunk_y = point2['y']
+
+        while steps < max_steps and not {'x':drunk_x, 'y':drunk_y} in cave:
+            steps += 1
+            n = 1.0
+            s = 1.0
+            e = 1.0
+            w = 1.0
+            weight = 1
+
+            if drunk_x < point1['x']:
+                e += weight
+            elif drunk_x > point1['x']:
+                w += weight
+
+            if drunk_y < point1['y']:
+                s += weight
+            elif drunk_y > point1['y']:
+                n += weight
+            tot = n + s + e + w
+            n /= tot
+            s /= tot
+            e /= tot
+            w /= tot
+
+            dx = 0
+            dy = 0
+            choice = random.random()
+            if 0 <= choice and choice < n:
+                dx = 0
+                dy = -1
+            elif n <= choice and choice < (n+s):
+                dx = 0
+                dy = 1
+            elif (n+s) <= choice and choice < (n+s+e):
+                dx = 1
+                dy = 0
+            else:
+                dx = -1
+                dy = 0
+
+            if (2 < drunk_x + dx and drunk_x + dx < self.NUM_COLS-2) and (2 < drunk_y + dy and drunk_y + dy < self.NUM_ROWS-2):
+                drunk_x += dx
+                drunk_y += dy
+
+                if _map[drunk_y][drunk_x] == 'wall2':
+                    _map[drunk_y][drunk_x] = 'empty'
+
+                    _map[drunk_y+1][drunk_x+1] = 'empty'
+                    _map[drunk_y][drunk_x+1] = 'empty'
+
+
+
+
+
+    def connectCaves(self, _map, caves):
+        prev_cave = None
+        tunnel_caves = deepcopy(caves)
+
+        for cave in tunnel_caves:
+            if prev_cave:
+                new_point = random.choice(cave)
+                prev_point = random.choice(prev_cave)
+
+                if new_point != prev_point:
+                    self.createTunnel(_map, new_point, prev_point, cave)
+            prev_cave = cave
+
+    def cellularAutomata(self, z):
         _map = [['wall2'] * self.NUM_COLS for _ in range(self.NUM_ROWS)]
+
+        iterations = 20000
+        neighbors = 4
+        center_c = self.NUM_COLS//2
+        center_r = self.NUM_ROWS//2
+        ground_chance = 48
+        min_cave_size = 80
+
+        self.randomGround(_map)
+        self.digCaves(_map, iterations, neighbors)
+        caves = self.getCaves(_map)
+        self.connectCaves(_map, caves)
+
+        return _map
+
+    ######
+
+
+    def drunkardsMap(self, z):
+        _map = self.fillWalls()#[['wall2'] * self.NUM_COLS for _ in range(self.NUM_ROWS)]
 
         center_c = self.NUM_COLS//2
         center_r = self.NUM_ROWS//2
@@ -556,7 +724,8 @@ class Game:
 
         for z in range(self.NUM_LEVELS):
             if z == 0:
-                _map.append(self.simplexMap(z))
+                _map.append(self.cellularAutomata(z))
+                #_map.append(self.simplexMap(z))
             else:
                 _map.append(self.drunkardsMap(z))
 

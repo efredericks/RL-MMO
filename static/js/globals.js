@@ -26,10 +26,12 @@ let MSG_TIME = 5; // duplicate from main.py
 
 let TEXT_BG = "rgb(220,220,220)";
 
+let MAP_OVERLAY_ACTIVE = false;
+
 // spritesheet
 let SPRITESHEET = {
     // env
-    wall1: { sprite: '#', color: '#ccc' },
+    wall1: { sprite: '#', color: '#cc00cc' },
     wall2: { sprite: '#', color: '#999' },
     floor1: { sprite: '.', color: '#333' },
     floor2: { sprite: '.', color: '#666' },
