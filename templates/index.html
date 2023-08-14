@@ -92,10 +92,10 @@
                 for (let c = 0; c < gameWorld.NUM_ROWS; c++) {
                     let tile = gameMap[level][r][c];
 
-                        ctx.fillStyle = SPRITESHEET[tile].color;
-                        // ctx.fillText(SPRITESHEET[tile].sprite, _x, _y + tileSize);
-                        ctx.fillRect(sx, sy, dx, dy);
-                        sx += dx;
+                    ctx.fillStyle = SPRITESHEET[tile].color;
+                    // ctx.fillText(SPRITESHEET[tile].sprite, _x, _y + tileSize);
+                    ctx.fillRect(sx, sy, dx, dy);
+                    sx += dx;
                 }
                 sy += dy;
                 sx = 20;
@@ -121,10 +121,10 @@
             if (isPlayer) {
                 // bubble
                 let tw = ctx.measureText(chat).width;
-                drawBubble(ctx, x - halftile, y - tilesize * 2, tw, tilesize + halftile, 10);
+                drawBubble(ctx, x - halfTile, y - tileSize * 2, tw, tileSize + halfTile, 10);
                 // text
                 ctx.fillstyle = color;
-                ctx.filltext(chat, x - halftile, y - tilesize - halftile);
+                ctx.fillText(chat, x - halfTile, y - tileSize - halfTile);
             } else {
                 // text
                 ctx.fillstyle = color;
@@ -134,7 +134,26 @@
             ctx.globalAlpha = 1.0;
         }
 
+        drawHP = (hp, maxHP, x, y) => {
+            let perc_life = hp / maxHP;
+            let bar_width = tileSize * perc_life;
+            ctx.fillStyle = "#eeeeeeaa";
+            ctx.fillRect(x - halfTile, y + 4, tileSize, 4);
+
+            // empty space
+            let remaining = tileSize - bar_width;
+            ctx.fillStyle = "#ff0000aa";
+            ctx.fillRect(x - halfTile, y + 5, tileSize-1, 2);
+
+            // health remaining
+            ctx.fillStyle = "#00ee00aa";
+            ctx.fillRect(x - halfTile, y + 5, bar_width, 2);
+
+        }
+
         drawMap = () => {
+            ctx.textAlign = "left";
+
             uiX = canvas.width - 260 + halfTile;
             uiY = tileSize;
 
@@ -170,6 +189,8 @@
 
                 let _x = 0;
                 let _y = 0;
+
+                ctx.textAlign = "center";
 
                 // map
                 // for (let r = 0; r < gameMap[0].length; r++) {
@@ -229,13 +250,17 @@
                         let _x = enemy.offsetX + (enemy.pos.c - startx) * tileSize;
                         let _y = enemy.offsetY + (enemy.pos.r - starty) * tileSize + tileSize;
 
-                        enemy.offsetX -= Math.sign(enemy.offsetX) * (1/8);
-                        enemy.offsetY -= Math.sign(enemy.offsetY) * (1/8);
+                        enemy.offsetX -= Math.sign(enemy.offsetX) * (1 / 8);
+                        enemy.offsetY -= Math.sign(enemy.offsetY) * (1 / 8);
 
                         // ctx.clearRect(enemy.pos.c * tileSize, enemy.pos.r * tileSize, tileSize, tileSize);
                         // ctx.fillText("E", enemy.pos.c * tileSize, enemy.pos.r * tileSize + tileSize);
                         // ctx.clearRect(_x, _y - tileSize, tileSize, tileSize);
 
+                        // draw HP bar
+                        drawHP(enemy.hp, enemy.maxHP, _x, _y);
+
+                        // draw enemy
                         ctx.fillStyle = SPRITESHEET[enemy.type].color;
                         ctx.fillText(SPRITESHEET[enemy.type].sprite, _x, _y);
 
@@ -257,8 +282,8 @@
                         let _x = _player.offsetX + (_player.pos.c - startx) * tileSize;
                         let _y = _player.offsetY + (_player.pos.r - starty) * tileSize + tileSize;
 
-                        player.offsetX -= Math.sign(player.offsetX) * (1/8);
-                        player.offsetY -= Math.sign(player.offsetY) * (1/8);
+                        player.offsetX -= Math.sign(player.offsetX) * (1 / 8);
+                        player.offsetY -= Math.sign(player.offsetY) * (1 / 8);
 
                         // ctx.clearRect(_x, _y - tileSize, tileSize, tileSize);
                         // ctx.clearRect(_player.pos.c * tileSize, _player.pos.r * tileSize, tileSize, tileSize);
@@ -273,6 +298,7 @@
                             playerKey = "_meditate";
 
                         if (player_id == myID) {
+                            ctx.textAlign = "left";
                             // draw side information 
                             let apples = 0;
                             if ('apple' in _player.inventory)
@@ -300,9 +326,15 @@
 
                             // fill for _player entity
                             // ctx.fillStyle = "#ff00ff";
+                            ctx.textAlign = "center";
                         } else {
                             playerKey = "other_player" + playerKey;
                         }
+
+                        // HP bar
+                        drawHP(_player.hp, _player.maxHP, _x, _y);
+
+
                         ctx.fillStyle = SPRITESHEET[playerKey].color;
                         // ctx.fillStyle = "#00ff00";
 
@@ -333,6 +365,9 @@
 
         }
         // all these generic calls could probably be a single function...
+        castSpell = (socket, pid, spellID) => {
+            socket.emit("castspell", { playerID: pid, spellID: spellID });
+        }
         movePlayer = (socket, pid, c, r) => {
             gamePlayers[pid].offsetX = c * halfTile;
             gamePlayers[pid].offsetY = r * halfTile;
@@ -375,6 +410,7 @@
             ctx = canvas.getContext("2d");
             ctx.font = "24px Chivo Mono, Courier";//Courier"
             ctx.fillStyle = "#eee";
+            ctx.textAlign = "center";
 
             // temp - move to python
             gameMap = undefined;
@@ -440,6 +476,11 @@
 
                         case 'i':
                             showInventory();
+                            break;
+
+                        // teleport random
+                        case '1':
+                            castSpell(socket, myID, 'teleport');
                             break;
 
                         // "meditate"
