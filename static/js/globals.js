@@ -72,6 +72,9 @@ let SPRITESHEET = {
     enemy_chat: { color: '#666666' },
     player_chat: { color: '#aa00aa' },
     other_player_chat: { color: '#00aa00' },
+
+    // status effects
+    status_fire: {color: '#ff0000'}
 };
 
 // pick a random index for each sound on [1,len]

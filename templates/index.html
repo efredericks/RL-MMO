@@ -1,3 +1,5 @@
+<!-- At some point we're going to need a full entity class to track visual cooldowns and whatnot -->
+
 <!DOCTYPE HTML>
 <html>
 
@@ -143,12 +145,22 @@
             // empty space
             let remaining = tileSize - bar_width;
             ctx.fillStyle = "#ff0000aa";
-            ctx.fillRect(x - halfTile, y + 5, tileSize-1, 2);
+            ctx.fillRect(x - halfTile, y + 5, tileSize - 1, 2);
 
             // health remaining
             ctx.fillStyle = "#00ee00aa";
             ctx.fillRect(x - halfTile, y + 5, bar_width, 2);
 
+        }
+
+        // blur the sprite and draw it slightly larger
+        drawEntityEffect = (which, x, y, sprite) => {
+            ctx.filter = "blur(5px)"
+            ctx.font = "32px Chivo Mono, Courier";//Courier"
+            ctx.fillStyle = SPRITESHEET[which].color;//"#ff0000";
+            ctx.fillText(sprite, x, y);
+            ctx.filter = "none";
+            ctx.font = "24px Chivo Mono, Courier";//Courier"
         }
 
         drawMap = () => {
@@ -335,11 +347,14 @@
                         drawHP(_player.hp, _player.maxHP, _x, _y);
 
 
-                        ctx.fillStyle = SPRITESHEET[playerKey].color;
-                        // ctx.fillStyle = "#00ff00";
+                        // draw the player
 
-                        // ctx.fillText("@", _player.pos.c * tileSize, _player.pos.r * tileSize + tileSize);
+                        // equipment effect (blur)
+                        drawEntityEffect("status_fire", _x, _y, SPRITESHEET[playerKey].sprite)
+
+                        ctx.fillStyle = SPRITESHEET[playerKey].color;
                         ctx.fillText(SPRITESHEET[playerKey].sprite, _x, _y);
+                        // ctx.shadowBlur = 0;
 
                         if (_player.chatlog.length > 0) {
                             // let a = p5map(_player.chatlog[1], MSG_TIME, 1, 0.8, 0.0);
