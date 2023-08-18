@@ -34,109 +34,8 @@ import uuid
 
 from copy import deepcopy
 
-# lookup table for special tiles that are walkable but can't have things placed on them
-DONT_PLACE = [
-#   "<", ">", 
-    'stairsDown', 'stairsUp',
-    'water1',
-    'tree1','tree2',
-]
+from globals import *
 
-WALKABLE = [
-#   ".", " ", "<", ">", 
-    'floor1', 'floor2', 'water1', 'empty',
-    'stairsDown', 'stairsUp',
-    'tree1','tree2',
-]
-
-ENEMY_DIRS = [
-    {'r':-1, 'c': -1},
-    {'r':-1, 'c': 0},
-    {'r':-1, 'c': 1},
-    {'r':0, 'c': -1},
-    {'r':0, 'c': 0},
-    {'r':0, 'c': 1},
-    {'r':1, 'c': -1},
-    {'r':1, 'c': 0},
-    {'r':1, 'c': 1},
-]
-MAX_ENEMIES_PER_LEVEL = 20
-MIN_ENEMIES_PER_LEVEL = 5
-
-MIN_ITEMS_PER_LEVEL = 5#100#5 
-MAX_ITEMS_PER_LEVEL = 50#500#10 
-
-ENEMY_FLAVOR_PHRASES_RANDOM = [
-    "!~@#!",
-    "!!",
-    "~!@",
-    "rawr",
-    "HI",
-]
-
-DRUNK_ITERATIONS = 25#50
-
-MSG_TIME = 5
-PLAYER_EFFECT_TIMEOUT = 10 # how many ticks before AOE is ready
-
-DROP_TYPE_ID = 0
-DROP_NUM_ID = 1
-DROP_CHANCE_ID = 2
-LOOKUP_STATS = {
-    'maxHP': {
-        'player': 10,
-        'gobbo': 5,
-        'snek': 4,
-        'rat': 3,
-    },
-    'xp': {
-        'gobbo': 3,
-        'snek': 2,
-        'rat': 1,
-    },
-    # probably removeable as rendering is offloaded to the client now
-    'sprite': {
-        # moveables
-        'player': '@',
-        'gobbo': 'g',
-        'snek': 's',
-        'rat': 'r',
-
-        # static
-        'apple': 'a',
-
-        # effects
-        'fire': 'f',
-        'heal': '+',
-    },
-    # name: list[(tuple(type, max, chance))] - random() > chance
-    'drops': {
-        'rat': [('apple', 1, 0.25)],
-        'gobbo': [('apple', 3, 0.35)],
-        'snek': [('apple', 5, 0.5)],
-    },
-    # effects
-    # key: {attr:impact, timeout: upper}
-    'effects': {
-        'fire': {'hp': -3, 'timer': 10},
-        'heal': {'hp': 1, 'timer': 5},
-    }
-
-
-}
-
-# this is probably redundant and can be removed - just check for one of the other globals
-ENTITY_NAMES = [
-    # moveable
-    'player',
-    'gobbo', 'snek', 'rat',
-
-    # static
-    'apple',
-
-    # effects
-    'fire', 'heal'
-]
 
 # utility functions
 # map function similar to p5.js
@@ -303,6 +202,9 @@ class Monster(MoveableEntity):
         # targeting info
         self.target = None
 
+        # pathfinding
+        self.pathfinding_map = GridWithWeights(game.gameMap[pos['level']], game.NUM_COLS, game.NUM_ROWS)
+
     def setTarget(self, other_id):
         self.target = other_id
 
@@ -335,20 +237,40 @@ class Monster(MoveableEntity):
                 if d > self.game.CAM_NUM_COLS: # forget!
                     self.removeTarget()
                 else: # follow!
-                    next_r = self.pos['r']
-                    next_c = self.pos['c']
+                    enemy_grid_id = (self.pos['c'], self.pos['r'])
+                    player_grid_id = (player.pos['c'], player.pos['r'])
+                    came_from, cost_so_far = a_star_search(self.pathfinding_map, enemy_grid_id, player_grid_id)
+                    path = reconstruct_path(came_from, enemy_grid_id, player_grid_id)
 
-                    if next_r < player.pos['r']: next_r += 1
-                    if next_r > player.pos['r']: next_r -= 1
-                    if self.game.isWalkable(next_c, next_r, player.pos['level']):
-                        self.pos['r'] = next_r
-                        self.pos['c'] = next_c
+                    # grab the 2nd option as the first is the entity itself
+                    if len(path) > 1:
+                        next_c = path[1][0]
+                        next_r = path[1][1] 
 
-                    if next_c < player.pos['c']: next_c += 1
-                    if next_c > player.pos['c']: next_c -= 1
-                    if self.game.isWalkable(next_c, next_r, player.pos['level']) and not (player.pos['c'] == next_c and player.pos['r'] == next_r):
-                        self.pos['r'] = next_r
-                        self.pos['c'] = next_c
+
+                        # distance to player is the last entry
+                        last_id = path[-1]
+
+                        # walkable AND the distance is farther away
+                        if last_id in cost_so_far and cost_so_far[last_id] > 1 and self.game.isWalkable(next_c, next_r, player.pos['level']):
+                            self.pos['r'] = next_r
+                            self.pos['c'] = next_c
+
+
+                #     next_r = self.pos['r']
+                #     next_c = self.pos['c']
+
+                #     if next_r < player.pos['r']: next_r += 1
+                #     if next_r > player.pos['r']: next_r -= 1
+                #     if self.game.isWalkable(next_c, next_r, player.pos['level']):
+                #         self.pos['r'] = next_r
+                #         self.pos['c'] = next_c
+
+                #     if next_c < player.pos['c']: next_c += 1
+                #     if next_c > player.pos['c']: next_c -= 1
+                #     if self.game.isWalkable(next_c, next_r, player.pos['level']) and not (player.pos['c'] == next_c and player.pos['r'] == next_r):
+                #         self.pos['r'] = next_r
+                #         self.pos['c'] = next_c
         else: # no target
             min_dist, min_id = self.game.CAM_NUM_COLS, "none"
 

@@ -1,13 +1,21 @@
 # https://www.redblobgames.com/pathfinding/a-star/implementation.html
 # Apache v2 licensed by Red Blob Games.
 import heapq
+from globals import *
 
 # skipping the type hinting for now
 class SquareGrid:
-    def __init__(self, width, height):
+    def __init__(self, grid, width, height):
         self.width = width
         self.height = height
         self.edges = {}
+        self.walls = []
+
+
+        for r in range(height):
+            for c in range(width):
+                if grid[r][c] not in WALKABLE:
+                    self.walls.append((c, r))
 
     def in_bounds(self, id):
         (x, y) = id
@@ -18,7 +26,13 @@ class SquareGrid:
 
     def neighbors(self, id):
         (x, y) = id
-        neighbors = [(x+1, y), (x-1, y), (x, y-1), (x, y+1)] # E W N S
+        # neighbors = [(x+1, y), (x-1, y), (x, y-1), (x, y+1)] # E W N S
+        # neighbors = [(x-1, y-1), (x, y-1), (x+1, y-1), (x+1, y), (x+1, y+1), (x, y+1), (x-1, y+1), (x-1, y)] # NW N NE E SE S SW W
+        cardinal_dirs = [(x, y-1), (x+1, y), (x, y+1), (x-1, y)] # N E S W
+        ordinal_dirs = [(x-1, y-1), (x+1, y-1), (x+1, y+1), (x-1, y+1)] # NW, NE, SE, SW
+        neighbors = [*cardinal_dirs, *ordinal_dirs] # NW N NE E SE S SW W
+
+        # TBD - figure out a way to identify which neighbors are cardinal/ordinal for cost bias
 
         if (x + y) % 2 == 0: neighbors.reverse() # S N W E
 
@@ -27,8 +41,8 @@ class SquareGrid:
         return results
 
 class GridWithWeights(SquareGrid):
-    def __init__(self, width, height):
-        super().__init__(width, height)
+    def __init__(self, grid, width, height):
+        super().__init__(grid, width, height)
         self.weights = {}
 
     def cost(self, from_node, to_node):
@@ -125,6 +139,7 @@ def a_star_search(graph, start, goal):
 
 
     
+"""
 import random
 g = GridWithWeights(30, 15)
 g.walls = []
@@ -176,3 +191,4 @@ for r in range(15):
 # start, goal = (1, 4), (8, 3)
 # came_from, cost_so_far = dijkstra_search(diagram4, start, goal)
 # cost_so_far can use as a distance field for nearness without path building
+"""
