@@ -119,17 +119,19 @@
         }
 
         drawChat = (x, y, chat, timer, color, isPlayer = false) => {
+            ctx.textAlign = "left";
             ctx.globalAlpha = p5map(timer, MSG_TIME, 1, 1.0, 0.0);
             if (isPlayer) {
                 // bubble
                 let tw = ctx.measureText(chat).width;
                 drawBubble(ctx, x - halfTile, y - tileSize * 2, tw, tileSize + halfTile, 10);
                 // text
-                ctx.fillstyle = color;
+                // ctx.fillstyle = color;
+                ctx.fillStyle = SPRITESHEET['player_chat'].color;
                 ctx.fillText(chat, x - halfTile, y - tileSize - halfTile);
             } else {
                 // text
-                ctx.fillstyle = color;
+                ctx.fillstyle = SPRITESHEET['enemy_chat'].color;
                 ctx.fillText(chat, x - halfTile, y - tileSize);
             }
 
