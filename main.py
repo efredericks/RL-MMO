@@ -22,6 +22,8 @@ from flask import Flask, request, render_template
 from flask_socketio import SocketIO, emit
 from flask_apscheduler import APScheduler
 
+from pathfinding import *
+
 import tcod, opensimplex
 
 import logging

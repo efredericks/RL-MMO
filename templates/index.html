@@ -155,10 +155,15 @@
 
         // blur the sprite and draw it slightly larger
         drawEntityEffect = (which, x, y, sprite) => {
-            ctx.filter = "blur(5px)"
+            let blurAmt = getRandomInt(2, 10);
+            ctx.globalAlpha = 0.5;
+            ctx.filter = `blur(${blurAmt}px)`;
             ctx.font = "32px Chivo Mono, Courier";//Courier"
             ctx.fillStyle = SPRITESHEET[which].color;//"#ff0000";
             ctx.fillText(sprite, x, y);
+
+            // reset
+            ctx.globalAlpha = 1.0;
             ctx.filter = "none";
             ctx.font = "24px Chivo Mono, Courier";//Courier"
         }
@@ -350,7 +355,9 @@
                         // draw the player
 
                         // equipment effect (blur)
-                        drawEntityEffect("status_fire", _x, _y, SPRITESHEET[playerKey].sprite)
+                        // drawEntityEffect("status_fire", _x, _y, SPRITESHEET[playerKey].sprite)
+                        drawEntityEffect("status_cold", _x, _y, SPRITESHEET[playerKey].sprite)
+                        // drawEntityEffect("status_elec", _x, _y, SPRITESHEET[playerKey].sprite)
 
                         ctx.fillStyle = SPRITESHEET[playerKey].color;
                         ctx.fillText(SPRITESHEET[playerKey].sprite, _x, _y);
