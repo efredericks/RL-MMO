@@ -31,7 +31,7 @@ let MAP_OVERLAY_ACTIVE = false;
 // spritesheet
 let SPRITESHEET = {
     // env
-    wall1: { sprite: '#', color: '#cc00cc' },
+    wall1: { sprite: '#', color: '#eee' },
     wall2: { sprite: '#', color: '#999' },
     floor1: { sprite: '.', color: '#333' },
     floor2: { sprite: '.', color: '#666' },
@@ -60,6 +60,7 @@ let SPRITESHEET = {
     rat: { sprite: 'r', color: '#ffff00' },
     snek: { sprite: 's', color: '#ffff00' },
     gobbo: { sprite: 'g', color: '#ffff00' },
+    slimeMold: { sprite: 'm', color: '#33ff00' },
 
     // items
     apple: { sprite: 'a', color: '#00ff00' },

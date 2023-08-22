@@ -52,11 +52,13 @@ LOOKUP_STATS = {
         'gobbo': 5,
         'snek': 4,
         'rat': 3,
+        'slimeMold': 2,
     },
     'xp': {
         'gobbo': 3,
         'snek': 2,
         'rat': 1,
+        'slimeMold': 1,
     },
     # probably removeable as rendering is offloaded to the client now
     'sprite': {
@@ -65,6 +67,7 @@ LOOKUP_STATS = {
         'gobbo': 'g',
         'snek': 's',
         'rat': 'r',
+        'slimeMold': 'm',
 
         # static
         'apple': 'a',
@@ -94,6 +97,7 @@ ENTITY_NAMES = [
     # moveable
     'player',
     'gobbo', 'snek', 'rat',
+    'slimeMold',
 
     # static
     'apple',

@@ -191,6 +191,7 @@ class Player(MoveableEntity):
     def update(self):
         super().update()
 
+
 class Monster(MoveableEntity):
     def __init__(self, _type, pos, entity_id=None, game=None):
         super().__init__(_type, pos, entity_id)
@@ -352,6 +353,19 @@ class Monster(MoveableEntity):
         #         e.pos['c'] = new_pos['c']
 
         # e.update()
+
+# A blob that just replicates and doesn't move
+class SlimeMold(Monster):
+    def __init__(self, _type, pos, entity_id=None, game=None):
+        super().__init__(_type, pos, entity_id, game)
+
+    def update(self, players_by_level):
+        if random.random() > 0.96: # replicate
+            neighbors = [{'level': self.pos['level'], 'c': d['c']+self.pos['c'], 'r': d['r']+self.pos['r']} for d in ENEMY_DIRS]
+            n = random.choice(neighbors)
+
+            if self.game.isWalkable(n['c'], n['r'], n['level']):
+                self.game.enemies.append(self.game.addEnemy("slimeMold", n))
 
 
 class Game:
@@ -715,6 +729,10 @@ class Game:
 
         for z in range(self.NUM_LEVELS):
             if z == 0:
+                e = self.addEnemy("slimeMold", self.getRandomPos(z))
+                print(e.pos)
+                _enemies.append(e)
+
                 for _ in range(random.randint(MIN_ENEMIES_PER_LEVEL, MAX_ENEMIES_PER_LEVEL)):
                     _enemies.append(self.addEnemy("rat", self.getRandomPos(z)))
             elif z == 1:
@@ -723,6 +741,7 @@ class Game:
             else:
                 for _ in range(random.randint(MIN_ENEMIES_PER_LEVEL, MAX_ENEMIES_PER_LEVEL)):
                     _enemies.append(self.addEnemy("snek", self.getRandomPos(z)))
+                
         
         return _enemies
 
@@ -743,11 +762,10 @@ class Game:
         return Effect(_type, pos, str(uuid.uuid4()))
 
     def addEnemy(self, _type, pos):
-        return Monster(_type, pos, str(uuid.uuid4()), self)
-        # return MoveableEntity(_type, pos, str(uuid.uuid4()))
-
-        # pos = self.getRandomPos()
-        # return pos
+        if _type == "slimeMold":
+            return SlimeMold(_type, pos, str(uuid.uuid4()), self)
+        else:
+            return Monster(_type, pos, str(uuid.uuid4()), self)
 
     # can walk
     def isWalkable(self, c, r, z):
@@ -896,9 +914,11 @@ class Game:
             # update health, drop and delete if dead
             retval = self.enemies[idx].updateHealth(atk)
             if not retval:
-                drop = random.choice(LOOKUP_STATS['drops'][self.enemies[idx]._type])
-                if random.random() > drop[DROP_CHANCE_ID]:
-                    self.items.append(self.addItem(drop[DROP_TYPE_ID], epos))
+
+                if self.enemies[idx]._type in LOOKUP_STATS['drops']:
+                    drop = random.choice(LOOKUP_STATS['drops'][self.enemies[idx]._type])
+                    if random.random() > drop[DROP_CHANCE_ID]:
+                        self.items.append(self.addItem(drop[DROP_TYPE_ID], epos))
 
                 del self.enemies[idx]
             return True
