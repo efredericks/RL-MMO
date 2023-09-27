@@ -20,6 +20,7 @@ TODAY:
 
 from flask import Flask, request, render_template
 from flask_socketio import SocketIO, emit
+from engineio.payload import Payload
 from flask_apscheduler import APScheduler
 
 from pathfinding import *
@@ -50,6 +51,7 @@ scheduler.api_enabled = True
 scheduler.init_app(app)
 scheduler.start()
 
+Payload.max_decode_packets = 2048
 socketio = SocketIO(app)
 
 opensimplex.seed(1)
@@ -275,7 +277,8 @@ class Monster(MoveableEntity):
         else: # no target
             min_dist, min_id = self.game.CAM_NUM_COLS, "none"
 
-            for pk, pv in players_by_level[self.pos['level']].items():
+            # for pk, pv in players_by_level[self.pos['level']].items():
+            for pk, pv in players_by_level.items():
                 if pv.active:
                     d = abs(self.pos['c'] - pv.pos['c']) + abs(self.pos['r'] - pv.pos['r'])
                     if d < min_dist:
@@ -365,11 +368,13 @@ class SlimeMold(Monster):
             n = random.choice(neighbors)
 
             if self.game.isWalkable(n['c'], n['r'], n['level']):
-                self.game.enemies.append(self.game.addEnemy("slimeMold", n))
+                e = self.game.addEnemy("slimeMold", n)
+                if e is not None:
+                    self.game.enemies[n['level']].append(e)
 
 
 class Game:
-    def __init__(self):
+    def __init__(self, scheduler):
 
 
         self.NUM_ROWS = 100#50
@@ -398,12 +403,25 @@ class Game:
         self.world['CAM_HALF_COLS'] = self.CAM_HALF_COLS
 
         self.players = {}
-        self.enemies = self.initEnemies()
+
+        self.enemies = {}
+        for z in range(self.NUM_LEVELS): self.enemies[z] = []
+        self.initEnemies()
+
         self.items = self.initItems()
         self.effects = []
 
         # place stairs
         self.placeStairs()
+
+        # schedule jobs
+        ### DOES THIS SLOW THINGS DOWN TOO MUCH?!?!?!
+        self.scheduler = scheduler
+        self.scheduler.add_job(func=self.tick, id='gametick', trigger='interval', seconds=1, misfire_grace_time=200, )
+        for z in range(self.NUM_LEVELS):
+            self.scheduler.add_job(func=self.enemyTick, args=[z], id='enemytick-{0}'.format(z), trigger='interval', seconds=1, misfire_grace_time=200, )
+
+
 
     def addPlayer(self, player_id):
         self.players[player_id] = Player("player", self.getRandomPos(), player_id, "mage", self)
@@ -419,15 +437,28 @@ class Game:
     def removePlayer(self, player_id):
         del self.players[player_id]
 
+    def enemyTick(self, lvl):
+        # update where players are by level
+        players_by_level = {}
+        # for z in range(self.NUM_LEVELS):
+        #     players_by_level[z] = {}
+
+        for pk, pv in self.players.items():
+            if pv.pos['level'] == lvl:
+                players_by_level[pv.entity_id] = pv
+
+        for e in self.enemies[lvl]:
+            e.update(players_by_level)
+
     # update the game state
     def tick(self):
         # update where players are by level
-        players_by_level = {}
-        for z in range(self.NUM_LEVELS):
-            players_by_level[z] = {}
+        # players_by_level = {}
+        # for z in range(self.NUM_LEVELS):
+        #     players_by_level[z] = {}
 
-        for pk, pv in self.players.items():
-            players_by_level[pv.pos['level']][pv.entity_id] = pv
+        # for pk, pv in self.players.items():
+        #     players_by_level[pv.pos['level']][pv.entity_id] = pv
 
 
         # update effects
@@ -442,7 +473,7 @@ class Game:
                 effect_ids.append(i)
 
             else: # impact enemies/players
-                for _ in self.enemies:
+                for _ in self.enemies[e.pos['level']]:
                     attackVal = self.hasEnemy(None, e.pos['c'], e.pos['r'], e.pos['level'], LOOKUP_STATS['effects'][e._type]['hp'])
                     # if attackVal:
                         # send to client for sound
@@ -460,8 +491,9 @@ class Game:
 
         # update the enemies
         # this should be offloaded to the particular classes!!
-        for e in self.enemies:
-            e.update(players_by_level)
+        # for ek, ev in self.enemies.items():
+        #     for e in ev:
+        #         e.update(players_by_level)
 
         # repopulate
         # TBD - this needs to be on a per-level basis
@@ -725,25 +757,36 @@ class Game:
         return _map
 
     def initEnemies(self):
-        _enemies = []
+        # _enemies = {}
 
         for z in range(self.NUM_LEVELS):
+            self.enemies[z] = []
             if z == 0:
+
+                e = self.addEnemy("slimeMold", self.getRandomPos(z))
+                print(e.pos)
+                if e is not None:
+                    self.enemies[z].append(e)
+
                 #e = self.addEnemy("slimeMold", self.getRandomPos(z))
                 #print(e.pos)
                 #_enemies.append(e)
 
                 for _ in range(random.randint(MIN_ENEMIES_PER_LEVEL, MAX_ENEMIES_PER_LEVEL)):
-                    _enemies.append(self.addEnemy("rat", self.getRandomPos(z)))
+                    e = self.addEnemy("rat", self.getRandomPos(z))
+                    if e is not None:
+                        self.enemies[z].append(e)
             elif z == 1:
                 for _ in range(random.randint(MIN_ENEMIES_PER_LEVEL, MAX_ENEMIES_PER_LEVEL)):
-                    _enemies.append(self.addEnemy("gobbo", self.getRandomPos(z)))
+                    e =self.addEnemy("gobbo", self.getRandomPos(z))
+                    if e is not None:
+                        self.enemies[z].append(e)
             else:
                 for _ in range(random.randint(MIN_ENEMIES_PER_LEVEL, MAX_ENEMIES_PER_LEVEL)):
-                    _enemies.append(self.addEnemy("snek", self.getRandomPos(z)))
-                
-        
-        return _enemies
+                    e = self.addEnemy("snek", self.getRandomPos(z))
+                    if e is not None:
+                        self.enemies[z].append(e)
+        # return _enemies
 
     def initItems(self):
         _items = []
@@ -762,10 +805,13 @@ class Game:
         return Effect(_type, pos, str(uuid.uuid4()))
 
     def addEnemy(self, _type, pos):
-        if _type == "slimeMold":
-            return SlimeMold(_type, pos, str(uuid.uuid4()), self)
+        if len(self.enemies[pos['level']]) < MAX_ENEMIES_PER_LEVEL:
+            if _type == "slimeMold":
+                return SlimeMold(_type, pos, str(uuid.uuid4()), self)
+            else:
+                return Monster(_type, pos, str(uuid.uuid4()), self)
         else:
-            return Monster(_type, pos, str(uuid.uuid4()), self)
+            return None
 
     # can walk
     def isWalkable(self, c, r, z):
@@ -903,24 +949,24 @@ class Game:
 
     def hasEnemy(self, pid, c, r, l, atk=1):
         idx = -1
-        for i in range(len(self.enemies)):
-            e = self.enemies[i]
+        for i in range(len(self.enemies[l])):
+            e = self.enemies[l][i]
             if e.pos['c'] == c and e.pos['r'] == r and e.pos['level'] == l:
                 idx = i
 
         if idx != -1:
-            epos = self.enemies[idx].pos
+            epos = self.enemies[l][idx].pos
 
             # update health, drop and delete if dead
-            retval = self.enemies[idx].updateHealth(atk)
+            retval = self.enemies[l][idx].updateHealth(atk)
             if not retval:
 
-                if self.enemies[idx]._type in LOOKUP_STATS['drops']:
-                    drop = random.choice(LOOKUP_STATS['drops'][self.enemies[idx]._type])
+                if self.enemies[l][idx]._type in LOOKUP_STATS['drops']:
+                    drop = random.choice(LOOKUP_STATS['drops'][self.enemies[l][idx]._type])
                     if random.random() > drop[DROP_CHANCE_ID]:
                         self.items.append(self.addItem(drop[DROP_TYPE_ID], epos))
 
-                del self.enemies[idx]
+                del self.enemies[l][idx]
             return True
         return False
 
@@ -956,9 +1002,10 @@ class Game:
 
     def getJSONEnemies(self, level):
         op = {}
-        for v in self.enemies:
-            if v.pos['level'] == level:
-                op[v.entity_id] = v.getTransmissable()
+        for ek, ev in self.enemies.items():
+            for v in ev:
+                if v.pos['level'] == level:
+                    op[v.entity_id] = v.getTransmissable()
         return json.dumps(op)
     
     def getJSONItems(self, level):
@@ -975,8 +1022,7 @@ class Game:
         return json.dumps(op)
 
 # TBD - turn into a db of some sort to avoid process issues
-game = Game()
-scheduler.add_job(func=game.tick, id='gametick', trigger='interval', seconds=1, misfire_grace_time=200, )
+game = Game(scheduler)
 
 @app.route("/")
 def index():
