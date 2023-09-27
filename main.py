@@ -762,10 +762,15 @@ class Game:
         for z in range(self.NUM_LEVELS):
             self.enemies[z] = []
             if z == 0:
+
                 e = self.addEnemy("slimeMold", self.getRandomPos(z))
                 print(e.pos)
                 if e is not None:
                     self.enemies[z].append(e)
+
+                #e = self.addEnemy("slimeMold", self.getRandomPos(z))
+                #print(e.pos)
+                #_enemies.append(e)
 
                 for _ in range(random.randint(MIN_ENEMIES_PER_LEVEL, MAX_ENEMIES_PER_LEVEL)):
                     e = self.addEnemy("rat", self.getRandomPos(z))
