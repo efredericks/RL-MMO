@@ -497,11 +497,37 @@ class Game:
         else:
             return None
 
+    # lookup function for players on level
+    def getPlayersOnLevel(self, z):
+        players_by_level = {}
+        for pk, pv in self.players.items():
+            if pv.pos['level'] == z:
+                players_by_level[pv.entity_id] = pv
+        return players_by_level
+
+
     # can walk
     def isWalkable(self, c, r, z):
         if c >= 0 and c <= self.NUM_COLS-1 and r >= 0 and r <= self.NUM_ROWS-1 and self.gameMap[z][r][c] in WALKABLE:#!= "#":
             return True
         return False
+
+    # ensure there is nothing on the cell aside from items
+    def isEmpty(self, c, r, z):
+        if self.isWalkable(c, r, z) and self.isPlaceable(c, r, z):
+            # no players
+            players_by_level = self.getPlayersOnLevel(z)
+            for pk, pv in players_by_level.items():
+                if pv.pos['c'] == c and pv.pos['r'] == r and pv.pos['level'] == z:
+                    return False
+
+            # no enemies
+            for i in range(len(self.enemies[z])):
+                e = self.enemies[z][i]
+                if e.pos['c'] == c and e.pos['r'] == r and e.pos['level'] == z:
+                    return False
+
+        return True
 
     # can place things
     def isPlaceable(self, c, r, z):

@@ -68,9 +68,6 @@ class MoveableEntity(Entity):
         # interaction - ['msg', ticksRemaining]
         self.chatlog = []
 
-        
-
-
     # update health
     def updateHealth(self, amt):
         # print(amt,self.hp)
@@ -100,7 +97,6 @@ class MoveableEntity(Entity):
         # next time entity can cast effect
         if self.effect_timeout > 0:
             self.effect_timeout -= 1
-            # print(self.effect_timeout)
 
         self.updateChats()
 
@@ -206,20 +202,6 @@ class Monster(MoveableEntity):
                             self.pos['c'] = next_c
 
 
-                #     next_r = self.pos['r']
-                #     next_c = self.pos['c']
-
-                #     if next_r < player.pos['r']: next_r += 1
-                #     if next_r > player.pos['r']: next_r -= 1
-                #     if self.game.isWalkable(next_c, next_r, player.pos['level']):
-                #         self.pos['r'] = next_r
-                #         self.pos['c'] = next_c
-
-                #     if next_c < player.pos['c']: next_c += 1
-                #     if next_c > player.pos['c']: next_c -= 1
-                #     if self.game.isWalkable(next_c, next_r, player.pos['level']) and not (player.pos['c'] == next_c and player.pos['r'] == next_r):
-                #         self.pos['r'] = next_r
-                #         self.pos['c'] = next_c
         else: # no target
             min_dist, min_id = self.game.CAM_NUM_COLS, "none"
 
@@ -246,74 +228,18 @@ class Monster(MoveableEntity):
                     self.pos['r'] = new_pos['r']
                     self.pos['c'] = new_pos['c']
 
-
-
-
-        # random follow
-        # if random.random() > 0.0:#0.15:
-        #     # get closest player
-        #     # min_dist, min_id = 999, "none"
-        #     min_dist, min_id = self.CAM_NUM_COLS, "none"
-
-        #     # give the enemy some flavor
-        #     if random.random() > 0.95 and not e.hasChat():
-        #         e.addChat(random.choice(ENEMY_FLAVOR_PHRASES_RANDOM))
-
-        #     # filter players on current level
-        #     # players_on_level = filter(lambda l: l.pos['level'] == e.pos['level'], self.players)
-        #     # print(list(players_on_level))
-        #     players_on_level = {}
-        #     for pk,pv in self.players.items():
-        #         if pv.pos['level'] == e.pos['level']:
-        #             players_on_level[pv.entity_id] = pv
-
-        #     for pid, player in players_on_level.items():#self.players.items():
-        #         if player.active:
-        #             d = abs(e.pos['c'] - player.pos['c']) + abs(e.pos['r'] - player.pos['r'])
-        #             print(d)
-        #             if d < min_dist:
-        #                 min_dist = d
-        #                 min_id = pid
-
-        #     if min_id in self.players:
-        #         player = self.players[min_id]
-        #         next_r = e.pos['r']
-        #         next_c = e.pos['c']
-
-        #         if next_r < player.pos['r']: next_r += 1
-        #         if next_r > player.pos['r']: next_r -= 1
-        #         if self.isWalkable(next_c, next_r, player.pos['level']):
-        #             e.pos['r'] = next_r
-        #             e.pos['c'] = next_c
-
-        #         if next_c < player.pos['c']: next_c += 1
-        #         if next_c > player.pos['c']: next_c -= 1
-        #         if self.isWalkable(next_c, next_r, player.pos['level']) and not (player.pos['c'] == next_c and player.pos['r'] == next_r):
-        #             e.pos['r'] = next_r
-        #             e.pos['c'] = next_c
-
-        # # random movement
-        # elif random.random() > 0.5:
-        #     new_dir = random.choice(ENEMY_DIRS)
-        #     new_pos = {'r': e.pos['r'] + new_dir['r'], 'c': e.pos['c'] + new_dir['c']}
-
-        #     if self.isWalkable(new_pos['c'], new_pos['r'], e.pos['level']):
-        #         e.pos['r'] = new_pos['r']
-        #         e.pos['c'] = new_pos['c']
-
-        # e.update()
-
 # A blob that just replicates and doesn't move
 class SlimeMold(Monster):
     def __init__(self, _type, pos, entity_id=None, game=None):
         super().__init__(_type, pos, entity_id, game)
 
     def update(self, players_by_level):
-        if random.random() > 0.96: # replicate
+        if random.random() > 0.90: # replicate
             neighbors = [{'level': self.pos['level'], 'c': d['c']+self.pos['c'], 'r': d['r']+self.pos['r']} for d in ENEMY_DIRS]
             n = random.choice(neighbors)
 
-            if self.game.isWalkable(n['c'], n['r'], n['level']):
+            #if self.game.isWalkable(n['c'], n['r'], n['level']):
+            if self.game.isEmpty(n['c'], n['r'], n['level']):
                 e = self.game.addEnemy("slimeMold", n)
                 if e is not None:
                     self.game.enemies[n['level']].append(e)
