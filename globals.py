@@ -53,12 +53,14 @@ LOOKUP_STATS = {
         'snek': 4,
         'rat': 3,
         'slimeMold': 2,
+        'NPC': 999,
     },
     'xp': {
         'gobbo': 3,
         'snek': 2,
         'rat': 1,
         'slimeMold': 1,
+        'NPC': 0,
     },
     # probably removeable as rendering is offloaded to the client now
     'sprite': {
@@ -68,6 +70,9 @@ LOOKUP_STATS = {
         'snek': 's',
         'rat': 'r',
         'slimeMold': 'm',
+
+        'NPC': 'P',
+        'questNPC': 'P',
 
         # static
         'apple': 'a',
@@ -88,8 +93,6 @@ LOOKUP_STATS = {
         'fire': {'hp': -3, 'timer': 10},
         'heal': {'hp': 1, 'timer': 5},
     }
-
-
 }
 
 # this is probably redundant and can be removed - just check for one of the other globals
@@ -98,6 +101,8 @@ ENTITY_NAMES = [
     'player',
     'gobbo', 'snek', 'rat',
     'slimeMold',
+    'NPC',
+    'questNPC',
 
     # static
     'apple',

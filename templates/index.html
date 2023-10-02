@@ -470,90 +470,165 @@
 
                 // game keys
                 if (activeElem == canvas) {
-                    switch (ev.key) {
-                        // move keys
-                        case 'j':
-                            movePlayer(socket, myID, 0, 1);
-                            break;
-                        case 'k':
-                            movePlayer(socket, myID, 0, -1);
-                            break;
-                        case 'h':
-                            movePlayer(socket, myID, -1, 0);
-                            break;
-                        case 'l':
-                            movePlayer(socket, myID, 1, 0);
-                            break;
 
-                        case 'y':
-                            movePlayer(socket, myID, -1, -1);
-                            break;
-                        case 'u':
-                            movePlayer(socket, myID, 1, -1);
-                            break;
-                        case 'b':
-                            movePlayer(socket, myID, -1, 1);
-                            break;
-                        case 'n':
-                            movePlayer(socket, myID, 1, 1);
-                            break;
+                    if (KEYS["up"].indexOf(ev.key) >= 0) {
+                        movePlayer(socket, myID, 0, -1);
+                    }
+                    if (KEYS["down"].indexOf(ev.key) >= 0) {
+                        movePlayer(socket, myID, 0, 1);
+                    }
+                    if (KEYS["left"].indexOf(ev.key) >= 0) {
+                        movePlayer(socket, myID, -1, 0);
+                    }
+                    if (KEYS["right"].indexOf(ev.key) >= 0) {
+                        movePlayer(socket, myID, 1, 0);
+                    }
+                    if (KEYS["upleft"].indexOf(ev.key) >= 0) {
+                        movePlayer(socket, myID, -1, -1);
+                    }
+                    if (KEYS["upright"].indexOf(ev.key) >= 0) {
+                        movePlayer(socket, myID, 1, -1);
+                    }
+                    if (KEYS["downleft"].indexOf(ev.key) >= 0) {
+                        movePlayer(socket, myID, -1, 1);
+                    }
+                    if (KEYS["downright"].indexOf(ev.key) >= 0) {
+                        movePlayer(socket, myID, 1, 1);
+                    }
+                    if (KEYS["inventory"].indexOf(ev.key) >= 0) {
+                        showInventory();
+                    }
+                    if (KEYS["teleport"].indexOf(ev.key) >= 0) {
+                        castSpell(socket, myID, 'teleport');
+                    }
+                    if (KEYS["meditate"].indexOf(ev.key) >= 0) {
+                        meditatePlayer(socket, myID);
+                        showFullMap(gamePlayers[myID].pos['level']);
+                        MAP_OVERLAY_ACTIVE = !MAP_OVERLAY_ACTIVE;
+                    }
+                    // apply character effect
+                    // healing radius
+                    // blast radius
+                    // ?
+                    if (KEYS["fireblast"].indexOf(ev.key) >= 0) {
+                        playerEffect(socket, myID);
+                    }
+                    // use item - in this case all we have
+                    // are apples
+                    if (KEYS["eat"].indexOf(ev.key) >= 0) {
+                        useItem(socket, myID);
+                    }
 
-                        case 'i':
-                            showInventory();
-                            break;
+                    // pickup the top item you see
+                    // TBD - maybe pick up them all, we'll see how it shakes out
+                    if (KEYS["pickup"].indexOf(ev.key) >= 0) {
+                        pickupItem(socket, myID);
+                    }
 
-                        // teleport random
-                        case '1':
-                            castSpell(socket, myID, 'teleport');
-                            break;
+                    // descend
+                    if (KEYS["descend"].indexOf(ev.key) >= 0) {
+                        descendPlayer(socket, myID);
+                    }
 
-                        // "meditate"
-                        case 'm':
-                            meditatePlayer(socket, myID);
-                            showFullMap(gamePlayers[myID].pos['level']);
-                            MAP_OVERLAY_ACTIVE = !MAP_OVERLAY_ACTIVE;
-                            break;
+                    // ascend
+                    if (KEYS["ascend"].indexOf(ev.key) >= 0) {
+                        ascendPlayer(socket, myID);
+                    }
 
-                        // apply character effect
-                        // healing radius
-                        // blast radius
-                        // ?
-                        case 'e':
-                            playerEffect(socket, myID);
-                            break;
-
-                        // use item - in this case all we have
-                        // are apples
-                        case '1':
-                            useItem(socket, myID);
-                            break;
-
-
-                        // pickup the top item you see
-                        // TBD - maybe pick up them all, we'll see how it shakes out
-                        case ',':
-                            pickupItem(socket, myID);
-                            break;
-
-                        // descend
-                        case '>':
-                            descendPlayer(socket, myID);
-                            break;
-
-                        // ascend
-                        case '<':
-                            ascendPlayer(socket, myID);
-                            break;
-
-                        // debug
-                        case '.':
-                            console.log(gamePlayers[myID]);
-                            console.log(gameWorld)
-                            console.log(gameMap)
-
-                            break;
+                    // debug
+                    if (KEYS["debug"].indexOf(ev.key) >= 0) {
+                        console.log(gamePlayers[myID]);
+                        console.log(gameWorld)
+                        console.log(gameMap)
                     }
                 }
+
+
+
+                //     switch (ev.key) {
+                //         // move keys
+                //         case 'j':
+                //             movePlayer(socket, myID, 0, 1);
+                //             break;
+                //         case 'k':
+                //             movePlayer(socket, myID, 0, -1);
+                //             break;
+                //         case 'h':
+                //             movePlayer(socket, myID, -1, 0);
+                //             break;
+                //         case 'l':
+                //             movePlayer(socket, myID, 1, 0);
+                //             break;
+
+                //         case 'y':
+                //             movePlayer(socket, myID, -1, -1);
+                //             break;
+                //         case 'u':
+                //             movePlayer(socket, myID, 1, -1);
+                //             break;
+                //         case 'b':
+                //             movePlayer(socket, myID, -1, 1);
+                //             break;
+                //         case 'n':
+                //             movePlayer(socket, myID, 1, 1);
+                //             break;
+
+                //         case 'i':
+                //             showInventory();
+                //             break;
+
+                //         // teleport random
+                //         case '1':
+                //             castSpell(socket, myID, 'teleport');
+                //             break;
+
+                //         // "meditate"
+                //         case 'm':
+                //             meditatePlayer(socket, myID);
+                //             showFullMap(gamePlayers[myID].pos['level']);
+                //             MAP_OVERLAY_ACTIVE = !MAP_OVERLAY_ACTIVE;
+                //             break;
+
+                //         // apply character effect
+                //         // healing radius
+                //         // blast radius
+                //         // ?
+                //         case 'e':
+                //             playerEffect(socket, myID);
+                //             break;
+
+                //         // use item - in this case all we have
+                //         // are apples
+                //         case '1':
+                //             useItem(socket, myID);
+                //             break;
+
+
+                //         // pickup the top item you see
+                //         // TBD - maybe pick up them all, we'll see how it shakes out
+                //         case ',':
+                //             pickupItem(socket, myID);
+                //             break;
+
+                //         // descend
+                //         case '>':
+                //             descendPlayer(socket, myID);
+                //             break;
+
+                //         // ascend
+                //         case '<':
+                //             ascendPlayer(socket, myID);
+                //             break;
+
+                //         // debug
+                //         case '.':
+                //             console.log(gamePlayers[myID]);
+                //             console.log(gameWorld)
+                //             console.log(gameMap)
+
+                //             break;
+                //     }
+                // }
 
 
                 if (gameMap !== undefined)

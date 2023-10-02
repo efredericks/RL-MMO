@@ -243,3 +243,15 @@ class SlimeMold(Monster):
                 e = self.game.addEnemy("slimeMold", n)
                 if e is not None:
                     self.game.enemies[n['level']].append(e)
+
+class NPC(MoveableEntity):
+    def __init__(self, _type, pos, wander_radius, entity_id=None, game=None):
+        super().__init__(_type, pos, entity_id, game)
+
+        self.wander_radius = wander_radius
+
+    # wander within a predefined radius
+    def update(self):
+        # move entity
+        if random.random() > 0.75:
+            pass

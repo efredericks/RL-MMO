@@ -1,13 +1,24 @@
 let KEYS = {
-    'up': ['KeyK', 'ArrowUp', 'Numpad8'],
-    'down': ['KeyJ', 'ArrowDown', 'Numpad2'],
-    'left': ['KeyH', 'ArrowLeft', 'Numpad4'],
-    'right': ['KeyL', 'ArrowRight', 'Numpad6'],
+    'up': ['k', 'ArrowUp', 'Numpad8'],
+    'down': ['j', 'ArrowDown', 'Numpad2'],
+    'left': ['h', 'ArrowLeft', 'Numpad4'],
+    'right': ['l', 'ArrowRight', 'Numpad6'],
 
-    'upleft': ['KeyY', 'Numpad7'],
-    'upright': ['KeyU', 'Numpad9'],
-    'downleft': ['KeyB', 'Numpad1'],
-    'downright': ['KeyN', 'Numpad3'],
+    'upleft': ['y', 'Numpad7'],
+    'upright': ['u', 'Numpad9'],
+    'downleft': ['b', 'Numpad1'],
+    'downright': ['n', 'Numpad3'],
+
+    'inventory': ['i'],
+    'teleport': ['1'],
+    'meditate': ['m'],
+    'fireblast': ['2'],
+    'eat': ['e'],
+    'pickup': [','],
+    'descend': ['>'],
+    'ascend': ['<'],
+    
+    'debug': ['.'],
 };
 
 let canvas, ctx;
@@ -62,6 +73,10 @@ let SPRITESHEET = {
     gobbo: { sprite: 'g', color: '#ffff00' },
     slimeMold: { sprite: 'm', color: '#33ff00' },
 
+    // npcs
+    NPC: { sprite: 'P', color: '#008080' },
+    questNPC: { sprite: 'P', color: '#5cffff' },
+
     // items
     apple: { sprite: 'a', color: '#00ff00' },
 
@@ -73,6 +88,7 @@ let SPRITESHEET = {
     enemy_chat: { color: '#666666' },
     player_chat: { color: '#aa00aa' },
     other_player_chat: { color: '#00aa00' },
+    npc_chat: { color: '#d1ffff'},
 
     // status effects
     status_fire: {color: '#ff0000'},
