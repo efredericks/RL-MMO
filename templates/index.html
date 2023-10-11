@@ -77,8 +77,9 @@
             }
         }
 
+        // are we going to allow this or just show in sidebar
         showInventory = () => {
-            alert("draw inventory")
+            // alert("draw inventory")
         }
 
         showFullMap = (level) => {
@@ -280,6 +281,7 @@
                         drawHP(enemy.hp, enemy.maxHP, _x, _y);
 
                         // draw enemy
+                        ctx.textAlign = "center";
                         ctx.fillStyle = SPRITESHEET[enemy.type].color;
                         ctx.fillText(SPRITESHEET[enemy.type].sprite, _x, _y);
 
@@ -328,14 +330,26 @@
                             uiY += tileSize;
                             ctx.fillText(`HP: ${_player.hp}/${_player.maxHP}`, uiX, uiY);
                             uiY += tileSize;
-                            ctx.fillText(`Apples: ${apples}`, uiX, uiY);
-                            uiY += tileSize;
+                            // ctx.fillText(`Apples: ${apples}`, uiX, uiY);
+                            // uiY += tileSize;
                             ctx.fillText(`Level: ${_player.pos.level + 1}`, uiX, uiY);
 
-                            if (_player.effect_timeout == 0) {
-                                uiY += tileSize;
-                                ctx.fillText(`AoE ready!`, uiX, uiY);
-                            }
+                            // show hotkeys
+                            uiY += tileSize;
+                            ctx.fillText(`e: Eat Apple [${apples}]`, uiX, uiY);
+
+                            uiY += tileSize;
+                            ctx.fillText(`1: Teleport [✓]`, uiX, uiY);
+
+                            uiY += tileSize;
+                            let fireReady = "x";
+                            if (_player.effect_timeout == 0) fireReady = "✓";
+                            ctx.fillText(`2: Fire wall [${fireReady}]`, uiX, uiY);
+
+                            // if (_player.effect_timeout == 0) {
+                            //     uiY += tileSize;
+                            //     ctx.fillText(`AoE ready!`, uiX, uiY);
+                            // }
 
                             // debug
                             uiY += tileSize;
