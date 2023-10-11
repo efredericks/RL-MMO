@@ -98,6 +98,9 @@ class Game:
         # place stairs
         self.placeStairs()
 
+        # repopulation tick
+        self.RESPAWN_TIMER = 0
+
         # schedule jobs
         ### DOES THIS SLOW THINGS DOWN TOO MUCH?!?!?!
         self.scheduler = scheduler
@@ -192,6 +195,15 @@ class Game:
         # update loop for all players
         for k, p in self.players.items():
             p.update()
+
+        # check for blood moon respawn event
+        self.RESPAWN_TIMER += 1
+        print(self.RESPAWN_TIMER)
+        if self.RESPAWN_TIMER >= RESPAWN_TIME_CHECK:
+            self.RESPAWN_TIMER = 0
+            print("RESPAWNING!")
+            self.initEnemies()
+
 
 
     def placeStairs(self):
@@ -470,6 +482,12 @@ class Game:
                     e = self.addEnemy("snek", self.getRandomPos(z))
                     if e is not None:
                         self.enemies[z].append(e)
+
+        # debug
+        op = ""
+        for z in range(len(self.enemies)):
+            op += "[{0}:{1}] ".format(z, len(self.enemies[z]))
+        print(op)
         # return _enemies
 
     def initItems(self):
