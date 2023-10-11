@@ -877,4 +877,5 @@ if __name__ == '__main__':
     log = logging.getLogger("werkzeug")
     log.disabled = True
 
-    socketio.run(app)
+    # socketio.run(app)
+    socketio.run(app, host='0.0.0.0', port=8080)
