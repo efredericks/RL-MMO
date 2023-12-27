@@ -296,6 +296,7 @@
                 }
 
                 // players
+                // console.log(gamePlayers);
                 for (const [player_id, _player] of Object.entries(gamePlayers)) {
                     // TBD: filter entities beforehand and simply don't draw them
                     if (_player.pos.c >= startx && _player.pos.c < endx && _player.pos.r >= starty && _player.pos.r < endy) {
@@ -332,7 +333,25 @@
                             uiY += tileSize;
                             // ctx.fillText(`Apples: ${apples}`, uiX, uiY);
                             // uiY += tileSize;
-                            ctx.fillText(`Level: ${_player.pos.level + 1}`, uiX, uiY);
+                            ctx.fillText(`Level: ${_player.stats.level}`, uiX, uiY);
+                            // ctx.fillText(`Level: ${_player.pos.level + 1}`, uiX, uiY);
+
+                            uiY += tileSize;
+                            ctx.fillText(`Strength: ${_player.stats.strength}`, uiX, uiY);
+                            uiY += tileSize;
+                            ctx.fillText(`Defense: ${_player.stats.defense}`, uiX, uiY);
+                            uiY += tileSize;
+                            ctx.fillText(`Intelligence: ${_player.stats.intelligence}`, uiX, uiY);
+                            uiY += tileSize;
+                            ctx.fillText(`Magic: ${_player.stats.magic}`, uiX, uiY);
+                            uiY += tileSize;
+                            ctx.fillText(`Speed: ${_player.stats.speed}`, uiX, uiY);
+                            uiY += tileSize;
+                            ctx.fillText(`Woodcutting: ${_player.stats.woodcutting}`, uiX, uiY);
+                            uiY += tileSize;
+                            ctx.fillText(`Mining: ${_player.stats.mining}`, uiX, uiY);
+                            uiY += tileSize;
+                            ctx.fillText(`Firemaking: ${_player.stats.firemaking}`, uiX, uiY);
 
                             // show hotkeys
                             uiY += tileSize;

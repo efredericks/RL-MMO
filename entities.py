@@ -128,12 +128,39 @@ class Player(MoveableEntity):
         assert player_class is not None, "Error: missing reference to player class"
         self.player_class = player_class
 
+        self.player_stats = {
+            'level': 0,
+            'woodcutting': 0,
+            'strength': 0,
+            'defense': 0,
+            'speed': 0,
+            'magic': 0,
+            'mining': 0,
+            'firemaking': 0,
+            'intelligence': 0,
+        }
+
         # reference to game map info
         assert game is not None, "Error: missing reference to game object"
         self.game = game
 
     def update(self):
         super().update()
+
+    def getTransmissable(self):
+        retval = {
+            'type': self._type,
+            'pos': self.pos,
+            'hp': self.hp,
+            'maxHP': self.maxHP,
+            'active': self.active,
+            'inventory': self.inventory,
+            'sprite': self.sprite,
+            'chatlog' : self.chatlog,
+            'effect_timeout': self.effect_timeout,
+            'stats': self.player_stats,
+        }
+        return retval
 
 
 class Monster(MoveableEntity):

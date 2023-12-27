@@ -198,7 +198,7 @@ class Game:
 
         # check for blood moon respawn event
         self.RESPAWN_TIMER += 1
-        print(self.RESPAWN_TIMER)
+        #print(self.RESPAWN_TIMER)
         if self.RESPAWN_TIMER >= RESPAWN_TIME_CHECK:
             self.RESPAWN_TIMER = 0
             print("RESPAWNING!")
